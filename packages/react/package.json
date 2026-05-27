@@ -1,7 +1,7 @@
 {
-  "name": "@eigenpal/docx-editor-react",
-  "version": "1.0.3",
-  "description": "React DOCX editor adapter for @eigenpal/docx-editor-core.",
+  "name": "pelnora-docx-editor-react",
+  "version": "1.0.3-pelnora.0",
+  "description": "React DOCX editor adapter for @eigenpal/docx-editor-core. Pelnora fork: Fluent UI icons + 2-row toolbar.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -61,7 +61,9 @@
     "*.css"
   ],
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsup && bun run build:css && node ../../scripts/inject-package-doc.mjs --package @eigenpal/docx-editor-react",
@@ -95,6 +97,7 @@
     "@eigenpal/docx-editor-agents": "^1.0.3",
     "@eigenpal/docx-editor-core": "^1.0.3",
     "@eigenpal/docx-editor-i18n": "^1.0.3",
+    "@fluentui/react-icons": "^2.0.326",
     "@radix-ui/react-select": "^2.2.6",
     "clsx": "^2.1.0",
     "sonner": "^2.0.7"
@@ -120,15 +123,13 @@
     "prosemirror"
   ],
   "author": {
-    "name": "Jedr Blaszyk",
-    "email": "jedr@eigenpal.com",
-    "url": "https://github.com/jedrazb"
+    "name": "Przemyslaw Kolakowski"
   },
   "license": "Apache-2.0",
   "homepage": "https://docx-editor.dev/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eigenpal/docx-editor.git",
+    "url": "https://github.com/Pelnora/docx-editor-fork.git",
     "directory": "packages/react"
   },
   "publishConfig": {

@@ -1,0 +1,15 @@
+Pelnora fork of @eigenpal/docx-editor
+
+This repository is a fork of @eigenpal/docx-editor v1.0.3
+  https://github.com/eigenpal/docx-editor
+  Copyright (c) eigenpal, Apache-2.0
+
+The React adapter (packages/react) is published by Pelnora as
+`pelnora-docx-editor-react` with the following modifications:
+- Replaced Material Symbols icons with Microsoft Fluent UI icons
+  (@fluentui/react-icons, MIT)
+- Restructured Toolbar component to 2-row layout
+- Added per-button color accents (lists, risk markers)
+
+All other packages and the original work remain Copyright (c) eigenpal,
+licensed under the Apache License 2.0. See LICENSE for the full text.

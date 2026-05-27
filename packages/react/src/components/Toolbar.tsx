@@ -659,7 +659,11 @@ export function Toolbar(explicitProps: ToolbarProps) {
       ref={barRef}
       className={cn(
         !inline &&
-          'flex items-center px-2 py-1 bg-[#f1f5f9] rounded-full min-h-[36px] overflow-x-auto mx-2 mb-1',
+          // 6.2w Phase 1d: 2-row layout (flex-wrap + a forced wrap-break before
+          // the font group). Was a single `flex items-center … rounded-full
+          // overflow-x-auto` pill; now wraps to two rows (Akapit/struktura on
+          // row 1, Czcionka + extras on row 2) per mockup v3.
+          'flex flex-wrap items-center gap-y-1 px-2 py-1 bg-[#f1f5f9] rounded-lg mx-2 mb-1',
         className
       )}
       style={inline ? { display: 'contents', ...style } : style}
@@ -717,6 +721,49 @@ export function Toolbar(explicitProps: ToolbarProps) {
           />
         </ToolbarGroup>
       )}
+
+      {/* Alignment Dropdown */}
+      {showAlignmentButtons && (
+        <ToolbarGroup label={t('formattingBar.groups.alignment')}>
+          <AlignmentButtons
+            value={currentFormatting.alignment || 'left'}
+            onChange={handleAlignmentChange}
+            disabled={disabled}
+          />
+        </ToolbarGroup>
+      )}
+
+      {/* List Buttons and Line Spacing */}
+      {(showListButtons || showLineSpacingPicker) && (
+        <ToolbarGroup label={t('formattingBar.groups.listFormatting')}>
+          {showListButtons && (
+            <ListButtons
+              listState={currentFormatting.listState || createDefaultListState()}
+              onBulletList={handleBulletList}
+              onNumberedList={handleNumberedList}
+              onIndent={handleIndent}
+              onOutdent={handleOutdent}
+              disabled={disabled}
+              showIndentButtons={true}
+              compact
+              hasIndent={(currentFormatting.indentLeft ?? 0) > 0}
+            />
+          )}
+          {showLineSpacingPicker && (
+            <LineSpacingPicker
+              value={currentFormatting.lineSpacing}
+              onChange={handleLineSpacingChange}
+              disabled={disabled}
+            />
+          )}
+        </ToolbarGroup>
+      )}
+
+      {/* 6.2w Phase 1d: force the second row — everything below (Czcionka,
+          contextual image/table groups, clear formatting, and the chrome
+          children = mode dropdown + agent + Pelnora extras) wraps to row 2.
+          Guarded by !inline so the display:contents inline variant is untouched. */}
+      {!inline && <div className="basis-full h-0" aria-hidden />}
 
       {/* Font Family and Size Pickers */}
       {(showFontPicker || showFontSizePicker) && (
@@ -836,43 +883,6 @@ export function Toolbar(explicitProps: ToolbarProps) {
           <MaterialSymbol name="subscript" size={ICON_SIZE} />
         </ToolbarButton>
       </ToolbarGroup>
-
-      {/* Alignment Dropdown */}
-      {showAlignmentButtons && (
-        <ToolbarGroup label={t('formattingBar.groups.alignment')}>
-          <AlignmentButtons
-            value={currentFormatting.alignment || 'left'}
-            onChange={handleAlignmentChange}
-            disabled={disabled}
-          />
-        </ToolbarGroup>
-      )}
-
-      {/* List Buttons and Line Spacing */}
-      {(showListButtons || showLineSpacingPicker) && (
-        <ToolbarGroup label={t('formattingBar.groups.listFormatting')}>
-          {showListButtons && (
-            <ListButtons
-              listState={currentFormatting.listState || createDefaultListState()}
-              onBulletList={handleBulletList}
-              onNumberedList={handleNumberedList}
-              onIndent={handleIndent}
-              onOutdent={handleOutdent}
-              disabled={disabled}
-              showIndentButtons={true}
-              compact
-              hasIndent={(currentFormatting.indentLeft ?? 0) > 0}
-            />
-          )}
-          {showLineSpacingPicker && (
-            <LineSpacingPicker
-              value={currentFormatting.lineSpacing}
-              onChange={handleLineSpacingChange}
-              disabled={disabled}
-            />
-          )}
-        </ToolbarGroup>
-      )}
 
       {/* Image controls - shown when image is selected */}
       {imageContext && onImageWrapType && (

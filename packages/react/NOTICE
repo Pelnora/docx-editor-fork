@@ -1,0 +1,13 @@
+pelnora-docx-editor-react
+
+This product includes software developed by Pelnora.
+
+Forked from @eigenpal/docx-editor v1.0.3
+  https://github.com/eigenpal/docx-editor
+  Copyright (c) eigenpal, Apache-2.0
+
+Modifications by Pelnora:
+- Replaced Material Symbols icons with Microsoft Fluent UI icons
+  (@fluentui/react-icons, MIT)
+- Restructured Toolbar component to 2-row layout
+- Added per-button color accents (lists, risk markers)
