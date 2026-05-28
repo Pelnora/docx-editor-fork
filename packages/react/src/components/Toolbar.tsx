@@ -731,20 +731,17 @@ export function Toolbar(explicitProps: ToolbarProps) {
         </ToolbarGroup>
       )}
 
-      {/* Alignment Dropdown */}
-      {showAlignmentButtons && (
+      {/* Akapit (Pelnora 6.2w Phase 2.3 combine): alignment + lists + line
+          spacing now share one ToolbarGroup so the eyebrow renders once. */}
+      {(showAlignmentButtons || showListButtons || showLineSpacingPicker) && (
         <ToolbarGroup label={t('formattingBar.groups.alignment')}>
-          <AlignmentButtons
-            value={currentFormatting.alignment || 'left'}
-            onChange={handleAlignmentChange}
-            disabled={disabled}
-          />
-        </ToolbarGroup>
-      )}
-
-      {/* List Buttons and Line Spacing */}
-      {(showListButtons || showLineSpacingPicker) && (
-        <ToolbarGroup label={t('formattingBar.groups.listFormatting')}>
+          {showAlignmentButtons && (
+            <AlignmentButtons
+              value={currentFormatting.alignment || 'left'}
+              onChange={handleAlignmentChange}
+              disabled={disabled}
+            />
+          )}
           {showListButtons && (
             <ListButtons
               listState={currentFormatting.listState || createDefaultListState()}
@@ -774,37 +771,34 @@ export function Toolbar(explicitProps: ToolbarProps) {
           Guarded by !inline so the display:contents inline variant is untouched. */}
       {!inline && <div className="basis-full h-0" aria-hidden />}
 
-      {/* Font Family and Size Pickers */}
-      {(showFontPicker || showFontSizePicker) && (
-        <ToolbarGroup label={t('formattingBar.groups.font')}>
-          {showFontPicker && (
-            <FontPicker
-              value={currentFormatting.fontFamily || 'Arial'}
-              onChange={handleFontFamilyChange}
-              fonts={normalizedFonts}
-              disabled={disabled}
-              width={60}
-              placeholder="Arial"
-            />
-          )}
-          {showFontSizePicker && (
-            <FontSizePicker
-              value={
-                currentFormatting.fontSize !== undefined
-                  ? halfPointsToPoints(currentFormatting.fontSize)
-                  : 11
-              }
-              onChange={handleFontSizeChange}
-              disabled={disabled}
-              width={42}
-              placeholder="11"
-            />
-          )}
-        </ToolbarGroup>
-      )}
-
-      {/* Text Formatting Group */}
-      <ToolbarGroup label={t('formattingBar.groups.textFormatting')}>
+      {/* Czcionka (Pelnora 6.2w Phase 2.3 combine): font family/size + text
+          formatting + superscript/subscript + clear formatting now share one
+          ToolbarGroup so the eyebrow renders once for the whole row-2 type
+          cluster. */}
+      <ToolbarGroup label={t('formattingBar.groups.font')}>
+        {showFontPicker && (
+          <FontPicker
+            value={currentFormatting.fontFamily || 'Arial'}
+            onChange={handleFontFamilyChange}
+            fonts={normalizedFonts}
+            disabled={disabled}
+            width={60}
+            placeholder="Arial"
+          />
+        )}
+        {showFontSizePicker && (
+          <FontSizePicker
+            value={
+              currentFormatting.fontSize !== undefined
+                ? halfPointsToPoints(currentFormatting.fontSize)
+                : 11
+            }
+            onChange={handleFontSizeChange}
+            disabled={disabled}
+            width={42}
+            placeholder="11"
+          />
+        )}
         <ToolbarButton
           onClick={() => handleFormat('bold')}
           active={currentFormatting.bold}
@@ -869,10 +863,6 @@ export function Toolbar(explicitProps: ToolbarProps) {
         >
           <MaterialSymbol name="link" size={ICON_SIZE} />
         </ToolbarButton>
-      </ToolbarGroup>
-
-      {/* Superscript/Subscript Group */}
-      <ToolbarGroup label={t('formattingBar.groups.script')}>
         <ToolbarButton
           onClick={() => handleFormat('superscript')}
           active={currentFormatting.superscript}
@@ -890,6 +880,14 @@ export function Toolbar(explicitProps: ToolbarProps) {
           ariaLabel={t('formattingBar.subscript')}
         >
           <MaterialSymbol name="subscript" size={ICON_SIZE} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => handleFormat('clearFormatting')}
+          disabled={disabled}
+          title={t('formattingBar.clearFormatting')}
+          ariaLabel={t('formattingBar.clearFormatting')}
+        >
+          <MaterialSymbol name="format_clear" size={ICON_SIZE} />
         </ToolbarButton>
       </ToolbarGroup>
 
@@ -942,17 +940,8 @@ export function Toolbar(explicitProps: ToolbarProps) {
         </ToolbarGroup>
       )}
 
-      {/* Clear Formatting */}
-      <ToolbarButton
-        onClick={() => handleFormat('clearFormatting')}
-        disabled={disabled}
-        title={t('formattingBar.clearFormatting')}
-        ariaLabel={t('formattingBar.clearFormatting')}
-      >
-        <MaterialSymbol name="format_clear" size={ICON_SIZE} />
-      </ToolbarButton>
-
-      {/* Custom toolbar items */}
+      {/* Custom toolbar items (Pelnora 6.2w Phase 2.3: standalone clear
+          formatting button was folded into the CZCIONKA combined group). */}
       {children}
     </div>
   );
