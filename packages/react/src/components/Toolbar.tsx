@@ -143,6 +143,16 @@ export interface ToolbarProps {
   editorRef?: React.RefObject<HTMLElement>;
   /** Custom toolbar items to render at the end */
   children?: ReactNode;
+  /** Pelnora 6.2w Phase 2.4: extras rendered at the very start of the
+   *  toolbar (before the History group). Use for leading custom slots
+   *  (e.g. File/Open/Print extras) that should live to the LEFT of the
+   *  built-in formatting groups. */
+  toolbarExtraStart?: ReactNode;
+  /** Pelnora 6.2w Phase 2.4: extras rendered at the end of the first
+   *  row (immediately before the forced wrap break). Use for trailing
+   *  custom slots that should sit on row 1 alongside the built-in
+   *  History/Zoom/Style groups, NOT on the row-2 typography cluster. */
+  toolbarExtraEnd?: ReactNode;
   /** When true, renders with display:contents so children flow in the parent flex container */
   inline?: boolean;
   /** Whether to show font family picker (default: true) */
@@ -403,6 +413,8 @@ export function Toolbar(explicitProps: ToolbarProps) {
     enableShortcuts = true,
     editorRef,
     children,
+    toolbarExtraStart,
+    toolbarExtraEnd,
     showFontPicker = true,
     fontFamilies,
     showFontSizePicker = true,
@@ -682,6 +694,11 @@ export function Toolbar(explicitProps: ToolbarProps) {
       onMouseDown={inline ? undefined : handleBarMouseDown}
       onMouseUp={inline ? undefined : handleBarMouseUp}
     >
+      {/* Pelnora 6.2w Phase 2.4 — leading custom slot. Renders before the
+          built-in History/Zoom/Style groups so consumers can place their
+          own File/Open/Print cluster at the leftmost position. */}
+      {toolbarExtraStart}
+
       {/* Undo/Redo Group */}
       <ToolbarGroup label={t('formattingBar.groups.history')}>
         <ToolbarButton
@@ -731,8 +748,22 @@ export function Toolbar(explicitProps: ToolbarProps) {
         </ToolbarGroup>
       )}
 
-      {/* Akapit (Pelnora 6.2w Phase 2.3 combine): alignment + lists + line
-          spacing now share one ToolbarGroup so the eyebrow renders once. */}
+      {/* Pelnora 6.2w Phase 2.4 — trailing custom slot at end of row 1.
+          Renders right before the forced wrap break, so consumers can
+          place row-1-trailing extras (Insert / Review / Assistant
+          clusters) next to the built-in structural groups instead of
+          dropping them into the row-2 typography cluster. */}
+      {toolbarExtraEnd}
+
+      {/* 6.2w Phase 1d: force the second row — everything below (Akapit,
+          Czcionka, contextual image/table groups, chrome children) wraps
+          to row 2. Guarded by !inline so the display:contents inline
+          variant is untouched. */}
+      {!inline && <div className="basis-full h-0" aria-hidden />}
+
+      {/* Akapit (Pelnora 6.2w Phase 2.3 combine + 2.4 row 2 move): alignment
+          + lists + line spacing share one ToolbarGroup, now on row 2 next
+          to CZCIONKA per Phase 2.4 layout. */}
       {(showAlignmentButtons || showListButtons || showLineSpacingPicker) && (
         <ToolbarGroup label={t('formattingBar.groups.alignment')}>
           {showAlignmentButtons && (
@@ -764,12 +795,6 @@ export function Toolbar(explicitProps: ToolbarProps) {
           )}
         </ToolbarGroup>
       )}
-
-      {/* 6.2w Phase 1d: force the second row — everything below (Czcionka,
-          contextual image/table groups, clear formatting, and the chrome
-          children = mode dropdown + agent + Pelnora extras) wraps to row 2.
-          Guarded by !inline so the display:contents inline variant is untouched. */}
-      {!inline && <div className="basis-full h-0" aria-hidden />}
 
       {/* Czcionka (Pelnora 6.2w Phase 2.3 combine): font family/size + text
           formatting + superscript/subscript + clear formatting now share one

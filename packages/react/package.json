@@ -1,6 +1,6 @@
 {
   "name": "pelnora-docx-editor-react",
-  "version": "1.0.3-pelnora.3",
+  "version": "1.0.3-pelnora.4",
   "description": "React DOCX editor adapter for @eigenpal/docx-editor-core. Pelnora fork: Fluent UI icons + 2-row toolbar.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

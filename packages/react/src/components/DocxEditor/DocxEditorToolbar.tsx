@@ -67,6 +67,8 @@ export function DocxEditorToolbar({
   documentNameEditable,
   renderTitleBarRight,
   toolbarExtra,
+  toolbarExtraStart,
+  toolbarExtraEnd,
   fontFamilies,
   zoom,
   showZoomControl,
@@ -111,6 +113,10 @@ export function DocxEditorToolbar({
   documentNameEditable: boolean | undefined;
   renderTitleBarRight: (() => ReactNode) | undefined;
   toolbarExtra: ReactNode;
+  /** Pelnora 6.2w Phase 2.4 — leading custom slot (leftmost in toolbar). */
+  toolbarExtraStart?: ReactNode;
+  /** Pelnora 6.2w Phase 2.4 — trailing custom slot at end of row 1. */
+  toolbarExtraEnd?: ReactNode;
   fontFamilies: ReadonlyArray<string | FontOption> | undefined;
   zoom: number;
   showZoomControl: boolean;
@@ -187,7 +193,10 @@ export function DocxEditorToolbar({
           )}
           <EditorToolbar.MenuBar />
         </EditorToolbar.TitleBar>
-        <EditorToolbar.Toolbar>
+        <EditorToolbar.Toolbar
+          toolbarExtraStart={toolbarExtraStart}
+          toolbarExtraEnd={toolbarExtraEnd}
+        >
           <ToolbarSeparator />
           <CommentsSidebarToggle
             active={showCommentsSidebar}

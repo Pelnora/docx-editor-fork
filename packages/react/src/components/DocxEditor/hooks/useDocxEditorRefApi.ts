@@ -135,6 +135,14 @@ export function useDocxEditorRefApi({
         setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, done: true } : c)));
       },
 
+      // Pelnora 6.2w Phase 2.4 — drive the same internal showCommentsSidebar
+      // state the built-in CommentsSidebarToggle button drives. Consumers
+      // can now mount a custom toggle button anywhere (e.g. inside their own
+      // toolbar extras cluster) and have it stay in sync with the built-in.
+      toggleCommentsSidebar: () => {
+        setShowCommentsSidebar((v) => !v);
+      },
+
       proposeChange: (options) => {
         const view = pagedEditorRef.current?.getView();
         if (!view) return false;

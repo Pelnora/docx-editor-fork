@@ -148,8 +148,18 @@ export interface DocxEditorProps {
    * This lets the browser or host app handle native find/history shortcuts.
    */
   disableFindReplaceShortcuts?: boolean;
-  /** Custom toolbar actions */
+  /** Custom toolbar actions (trailing slot — renders at the end of row 2). */
   toolbarExtra?: ReactNode;
+  /** Pelnora 6.2w Phase 2.4: custom toolbar slot rendered at the very
+   *  start of the toolbar (leftmost, before History). Use for leading
+   *  File/Open/Print clusters that should sit to the LEFT of the
+   *  built-in formatting groups. */
+  toolbarExtraStart?: ReactNode;
+  /** Pelnora 6.2w Phase 2.4: custom toolbar slot rendered at the end of
+   *  row 1 (immediately before the forced wrap break). Use for trailing
+   *  row-1 clusters (Insert / Review / Assistant) that should sit on
+   *  row 1, not in the row-2 typography cluster. */
+  toolbarExtraEnd?: ReactNode;
   /** Additional CSS class name */
   className?: string;
   /** Additional inline styles */
@@ -326,6 +336,12 @@ export interface DocxEditorRef {
   replyToComment: (commentId: number, text: string, author: string) => number | null;
   /** Resolve (mark as done) a comment. */
   resolveComment: (commentId: number) => void;
+  /** Pelnora 6.2w Phase 2.4 — toggle the comments sidebar panel. The
+   *  built-in toolbar exposes the same action via its `CommentsSidebarToggle`
+   *  button; this ref method lets consumers drive the same internal
+   *  `showCommentsSidebar` state from a custom toolbar button (e.g. a
+   *  Pelnora extras cluster) without prop-drilling. */
+  toggleCommentsSidebar: () => void;
   /** Suggest a tracked change. Pass `replaceWith: ''` to delete the matched text;
    * pass `search: ''` to insert at paragraph end. Returns false on missing paraId,
    * missing/ambiguous search, or attempt to layer on an existing tracked change. */
@@ -467,6 +483,8 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
     readOnly: readOnlyProp = false,
     disableFindReplaceShortcuts = false,
     toolbarExtra,
+    toolbarExtraStart,
+    toolbarExtraEnd,
     className = '',
     style,
     placeholder,
@@ -1496,6 +1514,8 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
             documentNameEditable={documentNameEditable}
             renderTitleBarRight={renderTitleBarRight}
             toolbarExtra={toolbarExtra}
+            toolbarExtraStart={toolbarExtraStart}
+            toolbarExtraEnd={toolbarExtraEnd}
             fontFamilies={fontFamilies}
             zoom={state.zoom}
             showZoomControl={showZoomControl}
