@@ -323,19 +323,28 @@ export function ToolbarButton({
 }
 
 /**
- * Toolbar button group with modern styling
+ * Toolbar button group with modern styling.
+ *
+ * Pelnora 6.2w Phase 2.1 Bug 6: when `label` is provided, render it as a
+ * visible eyebrow underneath the group's button row (matches the Pelnora
+ * extras pattern so built-in groups and Pelnora extras read as one system).
  */
 export function ToolbarGroup({ label, children, className }: ToolbarGroupProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-px px-1.5 border-r border-slate-200/50 last:border-r-0 first:pl-0',
+        'flex flex-col items-center gap-1 px-1.5 border-r border-slate-200/50 last:border-r-0 first:pl-0',
         className
       )}
       role="group"
       aria-label={label}
     >
-      {children}
+      <div className="flex items-center gap-px">{children}</div>
+      {label && (
+        <span className="text-[10px] font-medium leading-none uppercase tracking-[0.12em] text-slate-400 select-none">
+          {label}
+        </span>
+      )}
     </div>
   );
 }
