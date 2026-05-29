@@ -761,45 +761,12 @@ export function Toolbar(explicitProps: ToolbarProps) {
           variant is untouched. */}
       {!inline && <div className="basis-full h-0" aria-hidden />}
 
-      {/* Akapit (Pelnora 6.2w Phase 2.3 combine + 2.4 row 2 move): alignment
-          + lists + line spacing share one ToolbarGroup, now on row 2 next
-          to CZCIONKA per Phase 2.4 layout. */}
-      {(showAlignmentButtons || showListButtons || showLineSpacingPicker) && (
-        <ToolbarGroup label={t('formattingBar.groups.alignment')}>
-          {showAlignmentButtons && (
-            <AlignmentButtons
-              value={currentFormatting.alignment || 'left'}
-              onChange={handleAlignmentChange}
-              disabled={disabled}
-            />
-          )}
-          {showListButtons && (
-            <ListButtons
-              listState={currentFormatting.listState || createDefaultListState()}
-              onBulletList={handleBulletList}
-              onNumberedList={handleNumberedList}
-              onIndent={handleIndent}
-              onOutdent={handleOutdent}
-              disabled={disabled}
-              showIndentButtons={true}
-              compact
-              hasIndent={(currentFormatting.indentLeft ?? 0) > 0}
-            />
-          )}
-          {showLineSpacingPicker && (
-            <LineSpacingPicker
-              value={currentFormatting.lineSpacing}
-              onChange={handleLineSpacingChange}
-              disabled={disabled}
-            />
-          )}
-        </ToolbarGroup>
-      )}
-
-      {/* Czcionka (Pelnora 6.2w Phase 2.3 combine): font family/size + text
-          formatting + superscript/subscript + clear formatting now share one
-          ToolbarGroup so the eyebrow renders once for the whole row-2 type
-          cluster. */}
+      {/* Czcionka (Pelnora 6.2w Phase 2.3 combine, Phase 2.6 Bug 1 swap):
+          font family/size + text formatting + superscript/subscript + clear
+          formatting now share one ToolbarGroup so the eyebrow renders once
+          for the whole row-2 type cluster. Phase 2.6 Bug 1 moves CZCIONKA
+          to the leftmost row-2 position (was AKAPIT) so the type cluster
+          anchors the row Word-style. */}
       <ToolbarGroup label={t('formattingBar.groups.font')}>
         {showFontPicker && (
           <FontPicker
@@ -915,6 +882,42 @@ export function Toolbar(explicitProps: ToolbarProps) {
           <MaterialSymbol name="format_clear" size={ICON_SIZE} />
         </ToolbarButton>
       </ToolbarGroup>
+
+      {/* Akapit (Pelnora 6.2w Phase 2.3 combine + 2.4 row 2 move + Phase 2.6
+          Bug 1 swap): alignment + lists + line spacing share one ToolbarGroup.
+          Phase 2.6 Bug 1 moves AKAPIT to the RIGHT of CZCIONKA so the type
+          cluster anchors the left of row 2 Word-style. */}
+      {(showAlignmentButtons || showListButtons || showLineSpacingPicker) && (
+        <ToolbarGroup label={t('formattingBar.groups.alignment')}>
+          {showAlignmentButtons && (
+            <AlignmentButtons
+              value={currentFormatting.alignment || 'left'}
+              onChange={handleAlignmentChange}
+              disabled={disabled}
+            />
+          )}
+          {showListButtons && (
+            <ListButtons
+              listState={currentFormatting.listState || createDefaultListState()}
+              onBulletList={handleBulletList}
+              onNumberedList={handleNumberedList}
+              onIndent={handleIndent}
+              onOutdent={handleOutdent}
+              disabled={disabled}
+              showIndentButtons={true}
+              compact
+              hasIndent={(currentFormatting.indentLeft ?? 0) > 0}
+            />
+          )}
+          {showLineSpacingPicker && (
+            <LineSpacingPicker
+              value={currentFormatting.lineSpacing}
+              onChange={handleLineSpacingChange}
+              disabled={disabled}
+            />
+          )}
+        </ToolbarGroup>
+      )}
 
       {/* Image controls - shown when image is selected */}
       {imageContext && onImageWrapType && (

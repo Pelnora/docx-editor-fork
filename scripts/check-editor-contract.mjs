@@ -46,6 +46,11 @@ const REACT_PROPS_NOT_YET_IN_VUE = new Set([
   'pluginSidebarItems',
   'pluginRenderedDomContext',
   'agentPanel',
+  // Pelnora fork 1.0.3-pelnora.4 — custom toolbar slot props. React-only
+  // (no Vue host in Pelnora); staged divergence so the fork's parity check
+  // does not flag them on every commit.
+  'toolbarExtraStart',
+  'toolbarExtraEnd',
 ]);
 
 function extractInterfaceBody(source, name) {

@@ -83,11 +83,19 @@ function SvgIcon({
 // ============================================================================
 
 export function IconUndo({ size = defaultSize, className, style }: IconProps) {
-  return <ArrowUndo20Regular fontSize={size} className={className} style={style} />;
+  // Pelnora 6.2w Phase 2.6 multi-color: subtle blue accent on history actions
+  // (Cofnij/Ponów) per Word Online convention. primaryFill overrides the
+  // toolbar's granat (currentColor) recolor.
+  return (
+    <ArrowUndo20Regular fontSize={size} className={className} style={style} primaryFill="#3f6ea3" />
+  );
 }
 
 export function IconRedo({ size = defaultSize, className, style }: IconProps) {
-  return <ArrowRedo20Regular fontSize={size} className={className} style={style} />;
+  // Pelnora 6.2w Phase 2.6 multi-color: subtle blue (see IconUndo).
+  return (
+    <ArrowRedo20Regular fontSize={size} className={className} style={style} primaryFill="#3f6ea3" />
+  );
 }
 
 export function IconPrint({ size = defaultSize, className, style }: IconProps) {
@@ -127,7 +135,11 @@ export function IconSubscript({ size = defaultSize, className, style }: IconProp
 }
 
 export function IconLink({ size = defaultSize, className, style }: IconProps) {
-  return <Link20Regular fontSize={size} className={className} style={style} />;
+  // Pelnora 6.2w Phase 2.6 multi-color: subtle blue on Link, matching the
+  // shared "navigational accent" pattern with lists and history controls.
+  return (
+    <Link20Regular fontSize={size} className={className} style={style} primaryFill="#3f6ea3" />
+  );
 }
 
 export function IconFormatClear({ size = defaultSize, className, style }: IconProps) {
@@ -158,12 +170,26 @@ export function IconListBulleted({ size = defaultSize, className, style }: IconP
   // Pelnora D4 colour cue: subtle blue on list controls. primaryFill overrides
   // the inherited granat (currentColor), so this stays blue regardless of the
   // toolbar's granat recolor.
-  return <TextBulletListLtr20Regular fontSize={size} className={className} style={style} primaryFill="#3f6ea3" />;
+  return (
+    <TextBulletListLtr20Regular
+      fontSize={size}
+      className={className}
+      style={style}
+      primaryFill="#3f6ea3"
+    />
+  );
 }
 
 export function IconListNumbered({ size = defaultSize, className, style }: IconProps) {
   // Pelnora D4 colour cue: subtle blue on list controls (see IconListBulleted).
-  return <TextNumberListLtr20Regular fontSize={size} className={className} style={style} primaryFill="#3f6ea3" />;
+  return (
+    <TextNumberListLtr20Regular
+      fontSize={size}
+      className={className}
+      style={style}
+      primaryFill="#3f6ea3"
+    />
+  );
 }
 
 export function IconIndentIncrease({ size = defaultSize, className, style }: IconProps) {
