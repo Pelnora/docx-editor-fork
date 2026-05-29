@@ -47,14 +47,14 @@ import { useCommentSidebarItems, type CommentCallbacks } from '../hooks/useComme
 import { useTrackedChanges } from '../hooks/useTrackedChanges';
 import { type EditorState as PMEditorState } from 'prosemirror-state';
 import type { ReactSidebarItem } from '../plugin-api/types';
-import type { Comment } from '@eigenpal/docx-editor-core/types/content';
+import type { Comment, SectionProperties } from '@eigenpal/docx-editor-core/types/content';
 import type { Translations } from '@eigenpal/docx-editor-i18n';
 import { type PrintOptions } from './ui/PrintPreview';
 // Dialog hooks and utilities (static imports — lightweight, no UI)
 import { useFindReplace } from './dialogs/FindReplaceDialog';
 import { useHyperlinkDialog } from './dialogs/HyperlinkDialog';
 import { type InlineHeaderFooterEditorRef } from './InlineHeaderFooterEditor';
-import { DocumentAgent } from '@eigenpal/docx-editor-core/agent';
+import { DocumentAgent, type InsertImageOptions } from '@eigenpal/docx-editor-core/agent';
 import { DefaultLoadingIndicator, DefaultPlaceholder, ParseError } from './DocxEditorHelpers';
 import { type DocxInput } from '@eigenpal/docx-editor-core/utils';
 import { onFontsLoaded } from '@eigenpal/docx-editor-core/utils';
@@ -342,6 +342,51 @@ export interface DocxEditorRef {
    *  `showCommentsSidebar` state from a custom toolbar button (e.g. a
    *  Pelnora extras cluster) without prop-drilling. */
   toggleCommentsSidebar: () => void;
+  /** Pelnora 6.2w Phase 2.7 — insert a Word `w:br` page break at the
+   *  current cursor position. Delegates to the core PM command, which
+   *  guarantees a paragraph follows the break and leaves the cursor there.
+   *  Returns false if there's no active editor view or the command's own
+   *  guards refuse the dispatch. */
+  insertPageBreak: () => boolean;
+  /** Pelnora 6.2w Phase 2.7 — Malarz formatów (format painter), copy step.
+   *  Captures the marks active at the current selection's start position
+   *  into an internal store. Returns true when at least one mark was
+   *  captured (so the consumer can flip the trigger into its armed
+   *  visual state). Pair with `pasteFormat` to apply, or
+   *  `clearFormatPainter` to cancel. */
+  copyFormat: () => boolean;
+  /** Pelnora 6.2w Phase 2.7 — Malarz formatów, paste step. Applies the
+   *  stored marks to the current selection range, then clears the store.
+   *  Returns false if nothing was copied, the editor has no view, or the
+   *  selection is collapsed (a bare cursor has nothing to paint onto). */
+  pasteFormat: () => boolean;
+  /** Pelnora 6.2w Phase 2.7 — Malarz formatów, cancel. Clears the store
+   *  without applying. Used to back out of an armed state (Esc, off-click). */
+  clearFormatPainter: () => void;
+  /** Pelnora 6.2w Phase 2.7 — insert image at the current cursor. Accepts
+   *  a `src` (base64 data URL or absolute URL) and optional
+   *  `InsertImageOptions` (`{ width?, height?, alt? }`). Returns false when
+   *  there's no editor view, the cursor is in an unsupported context, or
+   *  the source paragraph is not in the document body. */
+  insertImage: (src: string, options?: InsertImageOptions) => boolean;
+  /** Pelnora 6.2w Phase 2.7 — insert a `rows × cols` table at the cursor.
+   *  Dispatches the core's PM table-insert command, so the result is a
+   *  real PM tableNode with the active selection inside the first cell.
+   *  Returns false on non-integer or non-positive dimensions, or when the
+   *  cursor is in a context the PM command refuses (e.g. already nested in
+   *  another table). */
+  insertTable: (rows: number, cols: number) => boolean;
+  /** Pelnora 6.2w Phase 2.7 — update the document's `finalSectionProperties`
+   *  with the given partial props (page size, orientation, margins). The
+   *  change goes through `handleDocumentChange` so it lands in undo/redo
+   *  the same way the menubar's Page Setup > Apply flow does. Returns
+   *  false only when there's no current document. */
+  setPageSetup: (props: Partial<SectionProperties>) => boolean;
+  /** Pelnora 6.2w Phase 2.7 — insert a generated Spis treści at the cursor.
+   *  Delegates to the core's PM `generateTOC` command, which walks the
+   *  document's headings and inserts a Word-style TOC. Returns false when
+   *  there's no editor view or the command's own guards refuse. */
+  generateTOC: () => boolean;
   /** Suggest a tracked change. Pass `replaceWith: ''` to delete the matched text;
    * pass `search: ''` to insert at paragraph end. Returns false on missing paraId,
    * missing/ambiguous search, or attempt to layer on an existing tracked change. */
@@ -1082,6 +1127,7 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
     contentChangeSubscribersRef,
     selectionChangeSubscribersRef,
     getCachedStyleResolver,
+    handleDocumentChange,
   });
 
   const initialSectionProperties = useMemo(

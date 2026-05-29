@@ -205,3 +205,13 @@ Don't: `@`-mention contributors, reference unrelated PR/issue numbers, list chan
 Issue tracker: `gh issue view <N> --repo eigenpal/docx-editor`. Dev server: `bun run dev` → `http://localhost:5173/`. Commit format: `fix: ... (fixes #N)`.
 
 Toolbar icons: Material Symbol SVGs, saved locally. Screenshots → `screenshots/`.
+
+---
+
+## Pelnora fork (`pelnora-fluent-icons` branch)
+
+This fork ships `pelnora-docx-editor-react` (renamed from `@eigenpal/docx-editor-react`) so the upstream package name stays untouched.
+
+- **Install with `bun install` from the repo root only.** Never run `pnpm install` or `npm install` inside `packages/react`. Both create a stray `.pnpm` tree that breaks `prosemirror-model` dedup (root pins 1.25.4; pnpm pulls 1.25.7) and trips tsup's dts pass with TS2345 dual-import errors. If the build starts complaining about duplicate `prosemirror-model` Node types, the recovery is `rm -rf packages/react/node_modules && bun install`. Workspaces examples reference the upstream name and currently fail to resolve, so on a fresh clone install with `workspaces: ["packages/*"]` only, then restore (the lockfile keeps both sets).
+- `bun run build` in `packages/react` is the source of truth before publish — `bun run typecheck` runs strict-mode tsc and is the gate before commit; the pre-commit `check-editor-contract.mjs` validates `DocxEditorProps` parity with Vue (staged divergences live in the script's allowlist).
+- Publish: bump `packages/react/package.json` version, `bun run build`, `npm publish --access public --tag pelnora --otp <code>` (requires a fresh `npm_…` token in `~/.npmrc`).

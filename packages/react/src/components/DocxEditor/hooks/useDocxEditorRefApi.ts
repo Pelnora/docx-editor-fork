@@ -1,9 +1,27 @@
-import { useImperativeHandle } from 'react';
+import { useImperativeHandle, useRef } from 'react';
 import { TextSelection } from 'prosemirror-state';
+import type { Mark } from 'prosemirror-model';
 import type { Document } from '@eigenpal/docx-editor-core/types/document';
 import type { Comment } from '@eigenpal/docx-editor-core/types/content';
-import { DocumentAgent } from '@eigenpal/docx-editor-core/agent';
-import { applyStyle } from '@eigenpal/docx-editor-core/prosemirror/commands';
+import {
+  DocumentAgent,
+  createAgentFromDocument,
+  // type imports re-added per feature as Phase 2.7 brings them in (B3 image,
+  // B4 table, ...). Unused imports trip the fork's `noUnusedParameters` /
+  // `noUnusedLocals` so we only keep what each shipped function references.
+} from '@eigenpal/docx-editor-core/agent';
+import {
+  applyStyle,
+  // Pelnora 6.2w Phase 2.7 — PM commands for the Wstawiaj cluster.
+  // Imported from the subpath (not the package root) because the subpath
+  // ships pre-built `.d.ts`, so the tsup dts pass never recompiles core
+  // sources. Each command dispatches its own transaction through the
+  // active editor view, so changes flow through the standard PM history
+  // pipeline (handleDocumentChange fires automatically).
+  insertPageBreak as pmInsertPageBreak,
+  insertTable as pmInsertTable,
+  generateTOC as pmGenerateTOC,
+} from '@eigenpal/docx-editor-core/prosemirror/commands';
 import { createStyleResolver, type SelectionState } from '@eigenpal/docx-editor-core/prosemirror';
 import type { DocxInput } from '@eigenpal/docx-editor-core/utils';
 import type { DocxEditorRef } from '../../DocxEditor';
@@ -45,6 +63,7 @@ export function useDocxEditorRefApi({
   contentChangeSubscribersRef,
   selectionChangeSubscribersRef,
   getCachedStyleResolver,
+  handleDocumentChange,
 }: {
   ref: React.ForwardedRef<DocxEditorRef>;
   agentRef: React.RefObject<DocumentAgent | null>;
@@ -66,7 +85,22 @@ export function useDocxEditorRefApi({
   getCachedStyleResolver: (
     styles: Parameters<typeof createStyleResolver>[0]
   ) => ReturnType<typeof createStyleResolver>;
+  /** Pelnora 6.2w Phase 2.7 — entry point into the internal document-change
+   *  pipeline (history, layout, contentChange subscribers). Used by ref
+   *  methods that mutate the Document model via the agent (insertImage,
+   *  insertTable, page setup, TOC). PM commands like insertPageBreak
+   *  dispatch through the view and don't need this. */
+  handleDocumentChange: (doc: Document) => void;
 }) {
+  // Pelnora 6.2w Phase 2.7 B2 — Malarz formatów (format painter) store.
+  // Holds raw PM Marks captured from the source selection; pasteFormat
+  // dispatches a single transaction that strips matching mark types from
+  // the target range and re-adds the stored marks. Storing PM-native marks
+  // (rather than a translated snapshot shape) avoids any round-trip loss
+  // for attrs (underline style, color rgb/themeColor, fontSize halfPoints,
+  // fontFamily ascii/hAnsi, highlight colour name).
+  const formatPainterStoreRef = useRef<readonly Mark[] | null>(null);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -141,6 +175,155 @@ export function useDocxEditorRefApi({
       // toolbar extras cluster) and have it stay in sync with the built-in.
       toggleCommentsSidebar: () => {
         setShowCommentsSidebar((v) => !v);
+      },
+
+      // Pelnora 6.2w Phase 2.7 B1 — page break at cursor. Pure PM command
+      // dispatch; the core's `insertPageBreak` ensures a paragraph follows
+      // the break and places the cursor in it.
+      insertPageBreak: () => {
+        const view = pagedEditorRef.current?.getView();
+        if (!view) return false;
+        return pmInsertPageBreak(view.state, view.dispatch);
+      },
+
+      // Pelnora 6.2w Phase 2.7 B2 — Malarz formatów (format painter): copy.
+      // Captures the marks active at the selection's start position into
+      // an internal ref. Works for both collapsed cursor (stored marks +
+      // marks at that position) and a non-empty range (marks at $from).
+      // Returns true when at least one mark was captured, so the caller
+      // can switch the trigger into its armed UX state.
+      copyFormat: () => {
+        const view = pagedEditorRef.current?.getView();
+        if (!view) return false;
+        const marks = view.state.selection.$from.marks();
+        formatPainterStoreRef.current = marks;
+        return marks.length > 0;
+      },
+
+      // Pelnora 6.2w Phase 2.7 B2 — Malarz formatów: paste. Applies the
+      // stored marks to the current selection range. Requires a non-empty
+      // range (a bare cursor has nothing to paint onto). Strips existing
+      // marks of the same TYPE first so colour/size/family values override
+      // cleanly rather than layering. Clears the store afterwards so the
+      // single-click flow returns to idle; double-click multi-paste is a
+      // possible later enhancement.
+      pasteFormat: () => {
+        const view = pagedEditorRef.current?.getView();
+        const stored = formatPainterStoreRef.current;
+        if (!view || !stored || stored.length === 0) return false;
+        const { selection } = view.state;
+        const { from, to } = selection;
+        if (from === to) return false;
+
+        let tr = view.state.tr;
+        for (const mark of stored) {
+          tr = tr.removeMark(from, to, mark.type);
+        }
+        for (const mark of stored) {
+          tr = tr.addMark(from, to, mark);
+        }
+        view.dispatch(tr);
+        formatPainterStoreRef.current = null;
+        return true;
+      },
+
+      // Pelnora 6.2w Phase 2.7 B2 — Malarz formatów: clear armed state
+      // without applying (Esc / off-click cancel from consumer side).
+      clearFormatPainter: () => {
+        formatPainterStoreRef.current = null;
+      },
+
+      // Pelnora 6.2w Phase 2.7 B3 — insert image at the current cursor.
+      // Delegates to DocumentAgent.insertImage at the Position derived from
+      // the PM cursor (paraId → paragraphIndex via body walk; parentOffset
+      // for character offset). Creates a fresh agent from the current
+      // document so the mutation lands cleanly through handleDocumentChange.
+      insertImage: (src, options) => {
+        const view = pagedEditorRef.current?.getView();
+        const doc = historyStateRef.current;
+        if (!view || !doc) return false;
+
+        const $from = view.state.selection.$from;
+        let depth = $from.depth;
+        while (depth > 0 && !$from.node(depth).isTextblock) depth--;
+        const para = depth > 0 ? $from.node(depth) : null;
+        const paraId = (para?.attrs?.paraId as string | undefined) ?? null;
+        if (!paraId) return false;
+
+        // `DocumentBody.content` holds the BlockContent array (paragraphs +
+        // tables). Walk to map paraId → paragraphIndex per the Position
+        // contract; only paragraphs carry a paraId so tables interleaved
+        // in the body don't confuse the search.
+        const content = doc.package.document?.content;
+        if (!content) return false;
+        let paragraphIndex = -1;
+        for (let i = 0; i < content.length; i++) {
+          const block = content[i] as { type?: string; paraId?: string };
+          if (block.type === 'paragraph' && block.paraId === paraId) {
+            paragraphIndex = i;
+            break;
+          }
+        }
+        if (paragraphIndex === -1) return false;
+
+        const offset = $from.parentOffset;
+        const agent = createAgentFromDocument(doc);
+        agent.insertImage({ paragraphIndex, offset }, src, options);
+        handleDocumentChange(agent.getDocument());
+        return true;
+      },
+
+      // Pelnora 6.2w Phase 2.7 B4 — insert rows × cols table at the cursor.
+      // Uses the PM command from the core's prosemirror/commands subpath
+      // (same path the menubar's Table > Insert binds to), so the table
+      // lands as a real PM tableNode with the editor's existing tableSchema
+      // and the active selection inside the first cell.
+      insertTable: (rows, cols) => {
+        const view = pagedEditorRef.current?.getView();
+        if (!view) return false;
+        if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 1 || cols < 1) {
+          return false;
+        }
+        return pmInsertTable(rows, cols)(view.state, view.dispatch);
+      },
+
+      // Pelnora 6.2w Phase 2.7 B6 — insert generated Spis treści at the
+      // cursor. Dispatches the core's PM `generateTOC` command, which
+      // walks the document's headings and inserts a Word-style TOC. The
+      // shape of the inserted content (page numbers, hierarchy, hyperlink
+      // anchors) is whatever the core ships today — we treat this as the
+      // MVP. A custom enhancement that adds page numbers / dotted leaders
+      // would land here if empirical review shows gaps.
+      generateTOC: () => {
+        const view = pagedEditorRef.current?.getView();
+        if (!view) return false;
+        return pmGenerateTOC(view.state, view.dispatch);
+      },
+
+      // Pelnora 6.2w Phase 2.7 B5 — set document `finalSectionProperties`.
+      // Mirrors the menubar's Page Setup > Apply flow (which uses the
+      // identically-shaped `handlePageSetupApply` in usePageSetupControls)
+      // so size / orientation / margin changes land in undo/redo through
+      // the same handleDocumentChange pipeline. Partial — only the keys
+      // present on `props` override; other keys keep their previous value.
+      setPageSetup: (props) => {
+        const doc = historyStateRef.current;
+        if (!doc) return false;
+        const newDoc = {
+          ...doc,
+          package: {
+            ...doc.package,
+            document: {
+              ...doc.package.document,
+              finalSectionProperties: {
+                ...doc.package.document?.finalSectionProperties,
+                ...props,
+              },
+            },
+          },
+        };
+        handleDocumentChange(newDoc);
+        return true;
       },
 
       proposeChange: (options) => {
@@ -506,6 +689,7 @@ export function useDocxEditorRefApi({
       loadParsedDocument,
       loadBuffer,
       comments,
+      handleDocumentChange,
     ]
   );
 }
