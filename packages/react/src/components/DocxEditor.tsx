@@ -396,6 +396,19 @@ export interface DocxEditorRef {
     replaceWith: string;
     author: string;
   }) => boolean;
+  /** Suggest a tracked change at a KNOWN character span in a paragraph's vanilla
+   * text, addressed by `offset` + `length` (not by search). Unlike proposeChange
+   * this can target a specific occurrence when the same phrase repeats in one
+   * paragraph (search would be ambiguous). `replaceWith: ''` deletes the span.
+   * Returns false on missing paraId, an out-of-range span, or an attempt to
+   * layer on an existing tracked change. */
+  proposeChangeAt: (options: {
+    paraId: string;
+    offset: number;
+    length: number;
+    replaceWith: string;
+    author: string;
+  }) => boolean;
   /** Locate every paragraph containing `query` (case-insensitive substring).
    * Returns a stable handle (paraId + the matched phrase) the agent can pass
    * back to `addComment` / `proposeChange`. */

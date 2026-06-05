@@ -31,6 +31,7 @@ import {
   getVanillaNodeText,
   getVanillaTextBetween,
   findTextInPmParagraph,
+  mapVanillaOffsetToPm,
 } from '../internals/vanillaText';
 import { mapHexToHighlightName } from '../../toolbarUtils';
 import { pointsToHalfPoints } from '../../ui/FontSizePicker';
@@ -396,6 +397,68 @@ export function useDocxEditorRefApi({
         }
 
         if (isInsertion && isDeletion) return false; // nothing to do
+        view.dispatch(tr);
+
+        setShowCommentsSidebar(true);
+        return true;
+      },
+
+      // Offset-addressed sibling of proposeChange. The caller passes the exact
+      // [offset, offset + length) span in the paragraph's vanilla text, so a
+      // specific occurrence can be targeted even when the same phrase repeats in
+      // one paragraph (search would be ambiguous → proposeChange refuses).
+      // Pelnora c11f. `replaceWith: ''` deletes the span.
+      proposeChangeAt: (options) => {
+        const view = pagedEditorRef.current?.getView();
+        if (!view) return false;
+        const { schema } = view.state;
+        if (!schema.marks.deletion || !schema.marks.insertion) return false;
+
+        const range = findParaIdRange(view.state.doc, options.paraId);
+        if (!range) return false;
+
+        const span = mapVanillaOffsetToPm(
+          view.state.doc,
+          range.from,
+          range.to,
+          options.offset,
+          options.length
+        );
+        if (!span) return false;
+        const { from: textFrom, to: textTo } = span;
+        if (textFrom >= textTo) return false; // offset addressing always strikes a span
+
+        // Refuse to layer onto an existing tracked change (same guard as
+        // proposeChange). A redline from the SAME multi-occurrence apply lives at
+        // a different span, so it never trips this — only a PRE-existing one does.
+        let overlapsTrackedChange = false;
+        view.state.doc.nodesBetween(textFrom, textTo, (node) => {
+          for (const m of node.marks) {
+            if (m.type === schema.marks.insertion || m.type === schema.marks.deletion) {
+              overlapsTrackedChange = true;
+              return false;
+            }
+          }
+          return true;
+        });
+        if (overlapsTrackedChange) return false;
+
+        const revisionId = getNextCommentId();
+        const date = new Date().toISOString();
+        const deletionMark = schema.marks.deletion.create({
+          revisionId,
+          author: options.author,
+          date,
+        });
+        let tr = view.state.tr.addMark(textFrom, textTo, deletionMark);
+        if (options.replaceWith !== '') {
+          const insertionMark = schema.marks.insertion.create({
+            revisionId,
+            author: options.author,
+            date,
+          });
+          tr = tr.insert(textTo, schema.text(options.replaceWith, [insertionMark]));
+        }
         view.dispatch(tr);
 
         setShowCommentsSidebar(true);
