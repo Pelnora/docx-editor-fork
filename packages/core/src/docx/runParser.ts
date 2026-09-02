@@ -267,6 +267,11 @@ export function parseRunProperties(
       cs: getAttribute(rFonts, 'w', 'cs') ?? undefined,
     };
 
+    // w:hint — kept so an rFonts that carries only a hint (common on Word
+    // paragraph marks) survives the round-trip.
+    const hint = getAttribute(rFonts, 'w', 'hint');
+    if (hint) formatting.fontFamily.hint = hint;
+
     // Theme font references
     const asciiTheme = getAttribute(rFonts, 'w', 'asciiTheme');
     if (asciiTheme) {

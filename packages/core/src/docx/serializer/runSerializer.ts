@@ -180,7 +180,11 @@ export function serializeTextFormatting(formatting: TextFormatting | undefined):
       fontAttrs.push(`w:eastAsiaTheme="${formatting.fontFamily.eastAsiaTheme}"`);
     }
     if (formatting.fontFamily.csTheme) {
-      fontAttrs.push(`w:csTheme="${formatting.fontFamily.csTheme}"`);
+      // Schema spelling is `w:cstheme` (ST_Theme); the parser reads the same.
+      fontAttrs.push(`w:cstheme="${formatting.fontFamily.csTheme}"`);
+    }
+    if (formatting.fontFamily.hint) {
+      fontAttrs.push(`w:hint="${escapeXml(formatting.fontFamily.hint)}"`);
     }
     if (fontAttrs.length > 0) {
       parts.push(`<w:rFonts ${fontAttrs.join(' ')}/>`);

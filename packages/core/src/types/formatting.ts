@@ -146,6 +146,8 @@ export interface TextFormatting {
     hAnsiTheme?: string;
     eastAsiaTheme?: string;
     csTheme?: string;
+    /** Font hint (w:hint) — which slot renders ambiguous characters. */
+    hint?: string;
   };
 
   // Spacing and position
@@ -353,6 +355,27 @@ export interface ParagraphFormatting {
   // Default run properties for this paragraph
   /** Run properties to apply to all runs (w:rPr) */
   runProperties?: TextFormatting;
+
+  /**
+   * Revision on the paragraph mark itself — `w:pPr/w:rPr/{w:ins,w:del,w:moveFrom,w:moveTo}`
+   * (ECMA-376 CT_ParaRPr, EG_ParaRPrTrackChanges). Word sets `w:ins` here when a
+   * paragraph was created with Track Changes on; without it an inserted
+   * paragraph's mark is not part of the revision.
+   */
+  paragraphMarkChange?: ParagraphMarkChange;
+}
+
+/**
+ * Tracked change recorded on a paragraph mark (w:pPr/w:rPr). Same attribute
+ * set as the run-level wrappers (id / author / date).
+ */
+export interface ParagraphMarkChange {
+  type: 'insertion' | 'deletion' | 'moveFrom' | 'moveTo';
+  info: {
+    id: number;
+    author: string;
+    date?: string;
+  };
 }
 
 // ============================================================================
