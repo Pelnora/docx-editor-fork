@@ -301,7 +301,16 @@ function serializePageMargins(props: SectionProperties): string {
  * Serialize columns (w:cols)
  */
 function serializeColumns(props: SectionProperties): string {
-  if (!props.columnCount && !props.columns?.length) return '';
+  // Word's single-column default is `<w:cols w:space="708"/>` — no w:num, no
+  // w:col children. Emit whenever any column property was parsed so a save
+  // never drops the element.
+  const hasAnyColumnProperty =
+    props.columnCount !== undefined ||
+    props.columnSpace !== undefined ||
+    props.equalWidth !== undefined ||
+    props.separator !== undefined ||
+    (props.columns?.length ?? 0) > 0;
+  if (!hasAnyColumnProperty) return '';
 
   const attrs: string[] = [];
 
@@ -338,9 +347,8 @@ function serializeColumns(props: SectionProperties): string {
       .join('');
   }
 
-  if (attrs.length === 0 && !colElements) return '';
-
   const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+  if (!colElements) return `<w:cols${attrsStr}/>`;
   return `<w:cols${attrsStr}>${colElements}</w:cols>`;
 }
 
