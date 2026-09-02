@@ -27,6 +27,7 @@ import type { DocxInput } from '@eigenpal/docx-editor-core/utils';
 import type { DocxEditorRef } from '../../DocxEditor';
 import type { PagedEditorRef } from '../PagedEditor';
 import { findParaIdRange } from '../internals/pmAnchors';
+import { buildTrackedInsertTransaction } from '../internals/trackedInsert';
 import {
   getVanillaNodeText,
   getVanillaTextBetween,
@@ -373,16 +374,19 @@ export function useDocxEditorRefApi({
           if (overlapsTrackedChange) return false;
         }
 
-        const revisionId = getNextCommentId();
+        // Two revision ids, like Word's own replace: every w:ins / w:del is an
+        // annotation with a unique w:id. (Pelnora H0-3: one shared id used to
+        // make the core serialize the pair as w:moveFrom/w:moveTo.) The
+        // sidebar pairs adjacent del+ins by author/date, not by id.
         const date = new Date().toISOString();
 
         const deletionMark = schema.marks.deletion.create({
-          revisionId,
+          revisionId: getNextCommentId(),
           author: options.author,
           date,
         });
         const insertionMark = schema.marks.insertion.create({
-          revisionId,
+          revisionId: getNextCommentId(),
           author: options.author,
           date,
         });
@@ -443,17 +447,17 @@ export function useDocxEditorRefApi({
         });
         if (overlapsTrackedChange) return false;
 
-        const revisionId = getNextCommentId();
+        // Distinct ids for the deletion and the insertion (see proposeChange).
         const date = new Date().toISOString();
         const deletionMark = schema.marks.deletion.create({
-          revisionId,
+          revisionId: getNextCommentId(),
           author: options.author,
           date,
         });
         let tr = view.state.tr.addMark(textFrom, textTo, deletionMark);
         if (options.replaceWith !== '') {
           const insertionMark = schema.marks.insertion.create({
-            revisionId,
+            revisionId: getNextCommentId(),
             author: options.author,
             date,
           });
@@ -461,6 +465,21 @@ export function useDocxEditorRefApi({
         }
         view.dispatch(tr);
 
+        setShowCommentsSidebar(true);
+        return true;
+      },
+
+      // Pelnora H0-3 (b) — insert whole blocks (headings, paragraphs with bold
+      // runs, lists) as ONE tracked insertion: runs get the `insertion` mark,
+      // every paragraph gets a paragraph-mark revision (w:pPr/w:rPr/w:ins), so
+      // the saved DOCX shows the new paragraphs as Word revisions by `author`.
+      // One transaction → one undo step (the app's rollback relies on that).
+      insertTracked: (options) => {
+        const view = pagedEditorRef.current?.getView();
+        if (!view) return false;
+        const tr = buildTrackedInsertTransaction(view.state, options, getNextCommentId);
+        if (!tr) return false;
+        view.dispatch(tr);
         setShowCommentsSidebar(true);
         return true;
       },

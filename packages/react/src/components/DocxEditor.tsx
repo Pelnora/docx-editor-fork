@@ -10,6 +10,7 @@
  */
 
 import { useRef, useCallback, useState, useEffect, useMemo, forwardRef } from 'react';
+import type { Node as PMNode } from 'prosemirror-model';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Document, Theme } from '@eigenpal/docx-editor-core/types/document';
 
@@ -408,6 +409,23 @@ export interface DocxEditorRef {
     length: number;
     replaceWith: string;
     author: string;
+  }) => boolean;
+  /** Insert block nodes (paragraphs — headings, bold runs, list items — or
+   * tables) as ONE tracked insertion by `author`: every text node gets the
+   * `insertion` mark and every paragraph a paragraph-mark revision, so the
+   * saved DOCX carries `w:ins` around the runs and `w:pPr/w:rPr/w:ins` on the
+   * paragraph mark, the way Word records a paragraph typed with Track Changes.
+   * `nodes` must be built with the editor schema (`getEditorRef().getView().state.schema`).
+   * `paraId: null` appends at the end of the document; `position` defaults to
+   * `'after'`; `date` defaults to now (ISO 8601). One transaction → one undo
+   * step. Returns false on an unknown paraId, empty `nodes`, or an insertion the
+   * schema rejects at that position (nothing is changed in that case). */
+  insertTracked: (options: {
+    paraId: string | null;
+    position?: 'after' | 'before';
+    nodes: PMNode[];
+    author: string;
+    date?: string;
   }) => boolean;
   /** Locate every paragraph containing `query` (case-insensitive substring).
    * Returns a stable handle (paraId + the matched phrase) the agent can pass
