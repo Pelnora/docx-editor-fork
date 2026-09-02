@@ -156,3 +156,41 @@ the next `bun install`. Less risk for the round-trip: zero import churn.
   order. They predate this work and are outside 4A; the fixture test lists them as
   the accepted diff classes.
 - API extractor snapshots (`docs/api/*`) are not regenerated (same as `.6`/`.7`).
+
+## 5. Word-check files (`scripts/pelnora/h0-3-out.test.ts`)
+
+The three DOCX files the orchestrator opens in Word are produced by the app's
+own path (`parseDocx → toProseDoc → [edit] → fromProseDoc → repackDocx`, the
+`proposeChange` marks and `buildTrackedInsertTransaction`):
+
+```
+bun test ./scripts/pelnora/h0-3-out.test.ts            # → /tmp/pelnora-audit/fork-out/
+H0_3_OUT=<dir> bun test ./scripts/pelnora/h0-3-out.test.ts
+```
+
+- `01_po_zamianie.docx` — fixture 01 + one redline (`w:del w:id="1"` + `w:ins w:id="2"`).
+- `01_po_tracked_insert.docx` — fixture 01 + `insertTracked` of four paragraphs
+  (8× `w:ins`, 4× paragraph-mark `w:pPr/w:rPr/w:ins`).
+- `05_roundtrip_bez_edycji.docx` — fixture 05 saved untouched (revisions + 2 comments).
+
+Each file is unzipped next to itself, every XML part goes through
+`xmllint --noout`, and the test asserts the contract above plus `w:cols`
+present, no `moveFrom`/`moveTo`, no duplicate revision ids.
+
+Why `bun test` and not `bun run`: `toProseDoc` needs a DOM and happy-dom 20.x
+registers reliably only under `bun test` (`bun run` failed with the happy-dom
+ESM interop error `Missing 'default' export … Element.js` on one Bun setup and
+floods stderr with stylesheet-loading errors on another). The file lives
+outside bunfig `root = ./packages`, so `bun test` (whole suite) never runs it —
+it writes to `/tmp` and needs `xmllint`. The leading `./` is required; without
+it bun treats the argument as a name filter and finds nothing.
+
+`w14:paraId` / `w14:textId`: the synthetic fixtures carry no paragraph ids and
+the harness builds `EditorState` without plugins, so it allocates them the way
+`ParaIdAllocatorExtension` does — `generateHexId()` from
+`packages/core/src/utils/hexId.ts` (8 uppercase hex digits below
+`0x7FFFFFFF`, the strictest `ST_LongHexNumber` bound), unique per document,
+`textId` = `paraId`. An earlier revision wrote `P0001…`, which is not a valid
+`ST_LongHexNumber`; Word could have reported unreadable content for a reason
+unrelated to the H0-3 serializer work. The test asserts the format, the bound
+and uniqueness on every generated file.
