@@ -120,22 +120,24 @@ export function useDocumentLoader({
     const doc = history.state;
     if (!doc) return;
     const bodyComments = doc.package?.document?.comments;
-    const view = pagedEditorRef.current?.getView();
-    if (!view) return;
     // Comments and revisions share one OOXML id space. Bump above BOTH even
     // when the document has no comments — a document with Word revisions but
     // no comments used to keep the counter at 1 and hand out colliding ids
-    // (Pelnora H0-3).
+    // (Pelnora H0-3). Only the revision scan needs the view; comments and the
+    // sidebar load below whether or not it exists yet.
     let maxId = (bodyComments ?? []).reduce((max, c) => Math.max(max, c.id), 0);
-    view.state.doc.descendants((node) => {
-      const change = node.attrs?.paragraphMarkChange as { info?: { id?: number } } | null;
-      if (change?.info?.id != null) maxId = Math.max(maxId, change.info.id);
-      for (const mark of node.marks) {
-        if (mark.attrs.revisionId != null) {
-          maxId = Math.max(maxId, mark.attrs.revisionId as number);
+    const view = pagedEditorRef.current?.getView();
+    if (view) {
+      view.state.doc.descendants((node) => {
+        const change = node.attrs?.paragraphMarkChange as { info?: { id?: number } } | null;
+        if (change?.info?.id != null) maxId = Math.max(maxId, change.info.id);
+        for (const mark of node.marks) {
+          if (mark.attrs.revisionId != null) {
+            maxId = Math.max(maxId, mark.attrs.revisionId as number);
+          }
         }
-      }
-    });
+      });
+    }
     bumpNextCommentIdAbove(maxId);
     if (bodyComments && bodyComments.length > 0) {
       setComments(bodyComments);
