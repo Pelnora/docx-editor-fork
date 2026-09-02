@@ -20,6 +20,7 @@
 import type {
   Paragraph,
   ParagraphFormatting,
+  ParagraphMarkChange,
   ParagraphPropertyChange,
   TextFormatting,
 } from '../../types/document';
@@ -143,12 +144,17 @@ export function serializeParagraphFormatting(
       parts.push(`<w:outlineLvl w:val="${formatting.outlineLevel}"/>`);
     }
 
-    // Run properties (default run formatting for paragraph)
-    if (formatting.runProperties) {
-      const rPrXml = serializeTextFormatting(formatting.runProperties);
-      if (rPrXml) {
-        parts.push(rPrXml);
-      }
+    // Paragraph-mark run properties. CT_ParaRPr order: the paragraph-mark
+    // revision (w:ins / w:del / w:moveFrom / w:moveTo) comes first, then the
+    // run properties.
+    const markChangeXml = formatting.paragraphMarkChange
+      ? serializeParagraphMarkChange(formatting.paragraphMarkChange)
+      : '';
+    const rPrInner = formatting.runProperties
+      ? extractRPrInner(serializeTextFormatting(formatting.runProperties))
+      : '';
+    if (markChangeXml || rPrInner) {
+      parts.push(`<w:rPr>${markChangeXml}${rPrInner}</w:rPr>`);
     }
   }
 
@@ -159,6 +165,35 @@ export function serializeParagraphFormatting(
   if (parts.length === 0) return '';
 
   return `<w:pPr>${parts.join('')}</w:pPr>`;
+}
+
+function extractRPrInner(rPrXml: string): string {
+  if (!rPrXml.startsWith('<w:rPr>') || !rPrXml.endsWith('</w:rPr>')) {
+    return '';
+  }
+  return rPrXml.slice('<w:rPr>'.length, -'</w:rPr>'.length);
+}
+
+const PARAGRAPH_MARK_CHANGE_TAG: Record<ParagraphMarkChange['type'], string> = {
+  insertion: 'ins',
+  deletion: 'del',
+  moveFrom: 'moveFrom',
+  moveTo: 'moveTo',
+};
+
+/**
+ * Serialize the revision on a paragraph mark (`w:pPr/w:rPr/w:ins` etc.).
+ * Same id/author/date normalization as the run-level wrappers.
+ */
+function serializeParagraphMarkChange(change: ParagraphMarkChange): string {
+  const info = change.info;
+  const normalizedId = Number.isInteger(info.id) && info.id >= 0 ? info.id : 0;
+  const authorCandidate = typeof info.author === 'string' ? info.author.trim() : '';
+  const normalizedAuthor = authorCandidate.length > 0 ? authorCandidate : 'Unknown';
+  const normalizedDate = typeof info.date === 'string' ? info.date.trim() : undefined;
+  const attrs = [`w:id="${normalizedId}"`, `w:author="${escapeXml(normalizedAuthor)}"`];
+  if (normalizedDate) attrs.push(`w:date="${escapeXml(normalizedDate)}"`);
+  return `<w:${PARAGRAPH_MARK_CHANGE_TAG[change.type]} ${attrs.join(' ')}/>`;
 }
 
 function extractPPrInner(pPrXml: string): string {

@@ -294,6 +294,9 @@ const paragraphNodeSpec: NodeSpec = {
     bidi: { default: null },
     outlineLevel: { default: null },
     bookmarks: { default: null },
+    // Paragraph-mark revision (w:pPr/w:rPr/w:ins …) — tracked insertion of the
+    // paragraph itself. See ParagraphAttrs.paragraphMarkChange.
+    paragraphMarkChange: { default: null },
     _originalFormatting: { default: null },
     _sectionProperties: { default: null },
   },

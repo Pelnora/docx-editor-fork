@@ -4,8 +4,8 @@
  * Helpers used by the run/paragraph walkers to (a) decide when two adjacent
  * text runs share their full mark set (for run coalescing on save), and
  * (b) project a Mark[] back to the OOXML-shaped `TextFormatting`. Also
- * owns the document-wide tracked-change counters used for cross-paragraph
- * move-pair detection.
+ * owns the document-wide tracked-change counters (kept for API
+ * compatibility; see `buildDocumentTrackedChangeCounts`).
  */
 
 import type { Node as PMNode, Mark } from 'prosemirror-model';
@@ -19,8 +19,11 @@ export type TrackedChangeCounts = {
 
 /**
  * Build document-wide tracked change counts by scanning all nodes.
- * Used for cross-paragraph move pair detection (moveFrom in one paragraph,
- * moveTo in another).
+ *
+ * Retained for API compatibility. It no longer drives serialization: an
+ * insertion mark always serializes as w:ins and a deletion mark as w:del
+ * (Pelnora H0-3 — the same-id "move pair" heuristic produced
+ * w:moveFrom/w:moveTo for replace redlines).
  */
 export function buildDocumentTrackedChangeCounts(pmDoc: PMNode): TrackedChangeCounts {
   const insertionById = new Map<number, number>();

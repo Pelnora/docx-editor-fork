@@ -9,6 +9,7 @@
 
 import type {
   ParagraphFormatting,
+  ParagraphMarkChange,
   Theme,
   ColorValue,
   BorderSpec,
@@ -29,6 +30,28 @@ import {
   type XmlElement,
 } from '../xmlParser';
 import { parseRunProperties } from '../runParser';
+import { parseTrackedChangeInfo } from '../tableParser/properties';
+
+const PARAGRAPH_MARK_CHANGE_TAGS: ReadonlyArray<[string, ParagraphMarkChange['type']]> = [
+  ['ins', 'insertion'],
+  ['del', 'deletion'],
+  ['moveFrom', 'moveFrom'],
+  ['moveTo', 'moveTo'],
+];
+
+/**
+ * Parse the revision recorded on a paragraph mark
+ * (`w:pPr/w:rPr/{w:ins,w:del,w:moveFrom,w:moveTo}`, ECMA-376 CT_ParaRPr).
+ */
+function parseParagraphMarkChange(rPr: XmlElement): ParagraphMarkChange | undefined {
+  for (const [tag, type] of PARAGRAPH_MARK_CHANGE_TAGS) {
+    const el = findChild(rPr, 'w', tag);
+    if (el) {
+      return { type, info: parseTrackedChangeInfo(el) };
+    }
+  }
+  return undefined;
+}
 
 /**
  * Parse color value from attributes
@@ -242,7 +265,7 @@ function parseFrameProperties(
  * - w:pStyle (style reference)
  * - w:outlineLvl (outline level)
  * - w:framePr (frame properties)
- * - w:rPr (default run properties)
+ * - w:rPr (default run properties + paragraph-mark revision w:ins/w:del)
  */
 export function parseParagraphProperties(
   pPr: XmlElement | null,
@@ -457,6 +480,10 @@ export function parseParagraphProperties(
   // === Default Run Properties ===
   const rPr = findChild(pPr, 'w', 'rPr');
   if (rPr) {
+    const markChange = parseParagraphMarkChange(rPr);
+    if (markChange) {
+      formatting.paragraphMarkChange = markChange;
+    }
     formatting.runProperties = parseRunProperties(rPr, theme, styles);
   }
 

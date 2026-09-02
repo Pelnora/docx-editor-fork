@@ -19,6 +19,7 @@ import type {
   TableRowFormatting,
   TableCellFormatting,
   SectionProperties,
+  ParagraphMarkChange,
 } from '../../types/document';
 import type { FloatingTableProperties, TableLook } from '../../types';
 import type { WrapType } from '../../docx/wrapTypes';
@@ -125,6 +126,11 @@ export interface ParagraphAttrs {
 
   // Bookmarks on this paragraph (for TOC anchors, cross-references)
   bookmarks?: Array<{ id: number; name: string }>;
+
+  /** Revision recorded on the paragraph mark (w:pPr/w:rPr/w:ins …). Set by
+   *  toProseDoc from the parsed formatting and by tracked block insertion;
+   *  fromProseDoc treats it as the source of truth. */
+  paragraphMarkChange?: ParagraphMarkChange;
 
   /** Original inline paragraph formatting from DOCX (pre-style-resolution).
    *  Used by fromProseDoc for lossless round-trip serialization. */

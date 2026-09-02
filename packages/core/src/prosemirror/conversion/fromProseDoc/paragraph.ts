@@ -5,8 +5,8 @@
  * walks each child node, dispatching to the run/hyperlink/field/sdt
  * factories and tracking the current run + current hyperlink so adjacent
  * text with the same mark set gets folded into a single Run. Tracked-change
- * marks (insertion/deletion/moveFrom/moveTo) split the run and emit their
- * own wrapper content. `createInlineSdtFromNode` lives here (not in
+ * marks (insertion/deletion) split the run and emit their own wrapper
+ * content; consecutive nodes of one revision share a wrapper. `createInlineSdtFromNode` lives here (not in
  * ./runs.ts) because it recurses back through this walker.
  */
 
@@ -23,13 +23,7 @@ import type {
   TrackedChangeInfo,
 } from '../../../types/document';
 import type { ParagraphAttrs } from '../../schema/nodes';
-import {
-  buildDocumentTrackedChangeCounts,
-  getLinkKey,
-  getMarksKey,
-  marksToTextFormatting,
-  type TrackedChangeCounts,
-} from './marks';
+import { getLinkKey, getMarksKey, marksToTextFormatting, type TrackedChangeCounts } from './marks';
 import {
   createHyperlink,
   addNodeToHyperlink,
@@ -190,6 +184,8 @@ function paragraphAttrsToFormatting(attrs: ParagraphAttrs): ParagraphFormatting 
     if (attrs.bidi !== (orig.bidi || undefined)) {
       result.bidi = attrs.bidi || undefined;
     }
+    // The PM attr is the source of truth for the paragraph-mark revision.
+    result.paragraphMarkChange = attrs.paragraphMarkChange || undefined;
 
     return result;
   }
@@ -211,7 +207,8 @@ function paragraphAttrsToFormatting(attrs: ParagraphAttrs): ParagraphFormatting 
     attrs.tabs ||
     attrs.outlineLevel != null ||
     attrs.contextualSpacing ||
-    attrs.bidi;
+    attrs.bidi ||
+    attrs.paragraphMarkChange;
 
   if (!hasFormatting) {
     return undefined;
@@ -235,6 +232,7 @@ function paragraphAttrsToFormatting(attrs: ParagraphAttrs): ParagraphFormatting 
     outlineLevel: attrs.outlineLevel ?? undefined,
     contextualSpacing: attrs.contextualSpacing || undefined,
     bidi: attrs.bidi || undefined,
+    paragraphMarkChange: attrs.paragraphMarkChange || undefined,
   };
 }
 
@@ -246,10 +244,9 @@ function paragraphAttrsToFormatting(attrs: ParagraphAttrs): ParagraphFormatting 
  */
 function extractParagraphContent(
   paragraph: PMNode,
-  documentCounts?: TrackedChangeCounts
+  _documentCounts?: TrackedChangeCounts
 ): ParagraphContent[] {
   const content: ParagraphContent[] = [];
-  const trackedChangeCounts = documentCounts ?? buildDocumentTrackedChangeCounts(paragraph);
 
   // Track current run being built
   let currentRun: Run | null = null;
@@ -314,23 +311,29 @@ function extractParagraphContent(
         author: (changeMark.attrs.author as string) || 'Unknown',
         date: (changeMark.attrs.date as string) || undefined,
       };
-      const revisionId = info.id;
-      const hasInsertionForId = (trackedChangeCounts.insertionById.get(revisionId) ?? 0) > 0;
-      const hasDeletionForId = (trackedChangeCounts.deletionById.get(revisionId) ?? 0) > 0;
-      const isMovePair = hasInsertionForId && hasDeletionForId;
 
-      if (insertionMark) {
-        if (isMovePair) {
-          content.push({ type: 'moveTo', info, content: [run] });
-        } else {
-          content.push({ type: 'insertion', info, content: [run] });
-        }
+      // An insertion mark is always `w:ins`, a deletion mark always `w:del`.
+      // (Pelnora H0-3: the former same-revisionId "move pair" heuristic turned
+      // every replace redline — deletion + insertion sharing one id — into
+      // w:moveFrom/w:moveTo. Word moves parse into distinct ids, so the
+      // heuristic never applied to them; through PM they serialize as del/ins.)
+      const wrapperType = insertionMark ? 'insertion' : 'deletion';
+
+      // Word wraps all runs of one revision in a single w:ins/w:del. Coalesce
+      // consecutive nodes that share the wrapper type and revision metadata so
+      // a bold word inside an insertion doesn't split it into two wrappers
+      // with the same id.
+      const last = content[content.length - 1];
+      if (
+        last &&
+        last.type === wrapperType &&
+        last.info.id === info.id &&
+        last.info.author === info.author &&
+        last.info.date === info.date
+      ) {
+        last.content.push(run);
       } else {
-        if (isMovePair) {
-          content.push({ type: 'moveFrom', info, content: [run] });
-        } else {
-          content.push({ type: 'deletion', info, content: [run] });
-        }
+        content.push({ type: wrapperType, info, content: [run] });
       }
       return;
     }

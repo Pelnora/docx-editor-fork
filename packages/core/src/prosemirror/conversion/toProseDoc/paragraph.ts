@@ -224,6 +224,8 @@ function paragraphFormattingToAttrs(
     listLevelNumFmts: paragraph.listRendering?.levelNumFmts || undefined,
     listAbstractNumId: paragraph.listRendering?.abstractNumId,
     listStartOverride: paragraph.listRendering?.startOverride,
+    // Paragraph-mark revision (w:pPr/w:rPr/w:ins …)
+    paragraphMarkChange: formatting?.paragraphMarkChange,
     // Store original inline formatting for lossless serialization round-trip
     _originalFormatting: formatting || undefined,
   };

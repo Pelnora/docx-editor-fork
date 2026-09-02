@@ -29,6 +29,7 @@ export type {
   LineSpacingRule,
   ParagraphAlignment,
   ParagraphFormatting,
+  ParagraphMarkChange,
   TableWidthType,
   TableMeasurement,
   TableBorders,
