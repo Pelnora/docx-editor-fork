@@ -26,6 +26,9 @@ export interface ZoomFitOption {
   active: boolean;
   /** Choosing the entry: the host computes the zoom and sets it. */
   onFit: () => void;
+  /** A level picked from the menu, also one equal to the current zoom (which
+   *  changes nothing on screen): the host's fit is no longer the mode. */
+  onLevel?: (zoom: number) => void;
 }
 
 export interface ZoomControlProps {
@@ -88,6 +91,7 @@ export function ZoomControl({
       const zoom = parseFloat(newValue);
       if (!isNaN(zoom)) {
         onChange?.(zoom);
+        fit?.onLevel?.(zoom);
       }
     },
     [onChange, fit]

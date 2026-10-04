@@ -40,8 +40,9 @@ export function PageIndicator({
         transition: 'opacity 0.3s ease',
         userSelect: 'none',
       }}
-      aria-live="polite"
-      role="status"
+      // Pelnora .9 — visual only: as a live status it was read out on every
+      // scroll. The page count is in the document itself.
+      aria-hidden="true"
     >
       {t('viewer.pageIndicator', { current: currentPage, total: totalPages })}
     </div>

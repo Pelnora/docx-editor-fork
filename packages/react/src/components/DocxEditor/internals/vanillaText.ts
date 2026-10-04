@@ -108,7 +108,9 @@ export function mapVanillaOffsetToPmPoint(
   offset: number
 ): number | null {
   const { fullText, textPositions } = vanillaTextAndPositions(doc, paragraphFrom, paragraphTo);
-  if (offset < 0 || offset > fullText.length || textPositions.length === 0) return null;
+  if (offset < 0 || offset > fullText.length) return null;
+  // An empty paragraph (a blank line of a template): its content start.
+  if (textPositions.length === 0) return offset === 0 ? paragraphFrom + 1 : null;
   let charOffset = 0;
   for (const tp of textPositions) {
     const segEnd = charOffset + tp.len;
@@ -160,13 +162,24 @@ export function mapVanillaOffsetToPm(
  *  ranges (the app repairs those on save), links and footnote references. */
 const NOT_INHERITED = new Set(['insertion', 'deletion', 'comment', 'hyperlink', 'footnoteRef']);
 
+/** A run whose look is not plain text: a link (its colour and underline come
+ *  from the link style), a footnote reference (superscript) or hidden text.
+ *  Inserted text never takes its formatting from such a run. */
+const NOT_A_SOURCE = new Set(['hyperlink', 'footnoteRef', 'hidden']);
+
+function formattingSource(node: PMNode | null | undefined): PMNode | null {
+  if (!node || !node.isText) return null;
+  return node.marks.some((m) => NOT_A_SOURCE.has(m.type.name)) ? null : node;
+}
+
 /**
  * The formatting marks (font, size, bold, colour …) inserted text takes from
  * the text it lands in (Pelnora .9): without them a tracked insertion came out
  * in the document default font, unlike the words around it. `prefer` picks the
  * run after the position (a replacement: the first struck character) or before
  * it (an insertion continues the run it follows); the other side is the
- * fallback at a paragraph edge.
+ * fallback when the preferred one is missing, not text (a tab, an image), or a
+ * link, a footnote reference or hidden text. Neither: no formatting.
  */
 export function inheritedFormattingMarks(
   doc: PMNode,
@@ -174,8 +187,9 @@ export function inheritedFormattingMarks(
   prefer: 'after' | 'before'
 ): readonly Mark[] {
   const $pos = doc.resolve(pos);
-  const node =
-    prefer === 'after' ? ($pos.nodeAfter ?? $pos.nodeBefore) : ($pos.nodeBefore ?? $pos.nodeAfter);
-  if (!node || !node.isText) return [];
-  return node.marks.filter((m) => !NOT_INHERITED.has(m.type.name));
+  const [first, second] =
+    prefer === 'after' ? [$pos.nodeAfter, $pos.nodeBefore] : [$pos.nodeBefore, $pos.nodeAfter];
+  const source = formattingSource(first) ?? formattingSource(second);
+  if (!source) return [];
+  return source.marks.filter((m) => !NOT_INHERITED.has(m.type.name));
 }

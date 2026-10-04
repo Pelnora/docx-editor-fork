@@ -64,6 +64,7 @@ export function useDocxEditorRefApi({
   comments,
   setComments,
   setShowCommentsSidebar,
+  openSidebarForChanges = true,
   contentChangeSubscribersRef,
   selectionChangeSubscribersRef,
   getCachedStyleResolver,
@@ -84,6 +85,10 @@ export function useDocxEditorRefApi({
   comments: Comment[];
   setComments: React.Dispatch<React.SetStateAction<Comment[]>>;
   setShowCommentsSidebar: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Pelnora .9 — whether a proposed or inserted tracked change opens the
+   *  comments sidebar (false with `showTrackedChangeCards={false}`: the change
+   *  has no card there, and a sidebar the user closed stays closed). */
+  openSidebarForChanges?: boolean;
   contentChangeSubscribersRef: React.RefObject<Set<(doc: Document) => void>>;
   selectionChangeSubscribersRef: React.RefObject<Set<(state: SelectionState | null) => void>>;
   getCachedStyleResolver: (
@@ -412,7 +417,7 @@ export function useDocxEditorRefApi({
         if (isInsertion && isDeletion) return false; // nothing to do
         view.dispatch(tr);
 
-        setShowCommentsSidebar(true);
+        if (openSidebarForChanges) setShowCommentsSidebar(true);
         return true;
       },
 
@@ -453,9 +458,10 @@ export function useDocxEditorRefApi({
             options.offset
           );
           if (point === null) return false;
-          // Refuse to land inside an existing tracked change.
+          // Refuse to land inside an existing tracked run (between two runs,
+          // even two tracked ones, the insertion is a revision of its own).
           const $point = view.state.doc.resolve(point);
-          if (isTracked($point.nodeBefore) && isTracked($point.nodeAfter)) return false;
+          if ($point.textOffset > 0 && isTracked($point.parent.child($point.index()))) return false;
           const base = inheritedFormattingMarks(view.state.doc, point, 'before');
           view.dispatch(
             view.state.tr.insert(
@@ -463,7 +469,7 @@ export function useDocxEditorRefApi({
               schema.text(options.replaceWith, [...base, insertionMark()])
             )
           );
-          setShowCommentsSidebar(true);
+          if (openSidebarForChanges) setShowCommentsSidebar(true);
           return true;
         }
 
@@ -505,7 +511,7 @@ export function useDocxEditorRefApi({
         }
         view.dispatch(tr);
 
-        setShowCommentsSidebar(true);
+        if (openSidebarForChanges) setShowCommentsSidebar(true);
         return true;
       },
 
@@ -520,7 +526,7 @@ export function useDocxEditorRefApi({
         const tr = buildTrackedInsertTransaction(view.state, options, getNextCommentId);
         if (!tr) return false;
         view.dispatch(tr);
-        setShowCommentsSidebar(true);
+        if (openSidebarForChanges) setShowCommentsSidebar(true);
         return true;
       },
 

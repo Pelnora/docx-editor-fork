@@ -873,7 +873,9 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
     setComments,
     pmState,
     isLoading: state.isLoading,
-    trackedChangesCount: trackedChanges.length,
+    // Pelnora .9: no change cards → loading a document with changes does
+    // not open the sidebar for them (comments still open it on load).
+    trackedChangesCount: showTrackedChangeCards ? trackedChanges.length : 0,
     setShowCommentsSidebar,
     trackedChangesLoadedRef,
   });
@@ -1174,6 +1176,7 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
     comments,
     setComments,
     setShowCommentsSidebar,
+    openSidebarForChanges: showTrackedChangeCards,
     contentChangeSubscribersRef,
     selectionChangeSubscribersRef,
     getCachedStyleResolver,

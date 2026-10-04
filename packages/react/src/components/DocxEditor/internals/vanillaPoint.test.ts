@@ -20,6 +20,9 @@ const schema = new Schema({
     deletion: {},
     comment: {},
     hyperlink: {},
+    footnoteRef: {},
+    hidden: {},
+    superscript: {},
     bold: {},
     fontFamily: { attrs: { ascii: { default: null } } },
   },
@@ -32,6 +35,9 @@ type Run = {
   bold?: boolean;
   font?: string;
   comment?: boolean;
+  link?: boolean;
+  footnote?: boolean;
+  hidden?: boolean;
 };
 
 function docFromRuns(runs: Run[]) {
@@ -42,6 +48,10 @@ function docFromRuns(runs: Run[]) {
     if (r.bold) marks.push(schema.marks.bold!.create());
     if (r.font) marks.push(schema.marks.fontFamily!.create({ ascii: r.font }));
     if (r.comment) marks.push(schema.marks.comment!.create());
+    if (r.link) marks.push(schema.marks.hyperlink!.create());
+    if (r.footnote)
+      marks.push(schema.marks.footnoteRef!.create(), schema.marks.superscript!.create());
+    if (r.hidden) marks.push(schema.marks.hidden!.create());
     return schema.text(r.text, marks);
   });
   const doc = schema.node('doc', null, [schema.node('paragraph', null, nodes)]);
@@ -73,12 +83,14 @@ describe('mapVanillaOffsetToPmPoint', () => {
     expect(mapVanillaOffsetToPmPoint(doc, from, to, 3)).toBe(5);
   });
 
-  it('returns null outside the text or for an empty paragraph', () => {
+  it('returns null outside the text; an empty paragraph has its content start', () => {
     const { doc, from, to } = docFromRuns([{ text: 'abc' }]);
     expect(mapVanillaOffsetToPmPoint(doc, from, to, -1)).toBeNull();
     expect(mapVanillaOffsetToPmPoint(doc, from, to, 4)).toBeNull();
+    // A blank template line: inserting there is a real use.
     const empty = schema.node('doc', null, [schema.node('paragraph')]);
-    expect(mapVanillaOffsetToPmPoint(empty, 0, empty.child(0).nodeSize, 0)).toBeNull();
+    expect(mapVanillaOffsetToPmPoint(empty, 0, empty.child(0).nodeSize, 0)).toBe(1);
+    expect(mapVanillaOffsetToPmPoint(empty, 0, empty.child(0).nodeSize, 1)).toBeNull();
   });
 });
 
@@ -99,6 +111,31 @@ describe('inheritedFormattingMarks', () => {
     ).toBe('Times New Roman');
     // before PM 5: the struck "cd" → its font only, not the deletion mark.
     expect(names(inheritedFormattingMarks(doc, 5, 'before'))).toEqual(['fontFamily']);
+  });
+
+  it('never takes the look of a link, a footnote reference or hidden text: the other side instead', () => {
+    // „ustawy¹” then plain text: an insertion right after the reference
+    // continues the plain run after it, not the superscript.
+    const { doc } = docFromRuns([
+      { text: 'ustawy', font: 'Times' },
+      { text: '1', footnote: true, font: 'Times' },
+      { text: ' oraz', font: 'Times', bold: true },
+    ]);
+    // before PM 8 is the footnote reference "1" (7..8): the run after it wins.
+    expect(names(inheritedFormattingMarks(doc, 8, 'before'))).toEqual(['bold', 'fontFamily']);
+    const link = docFromRuns([{ text: 'strona', link: true }, { text: ' tekst' }]);
+    expect(names(inheritedFormattingMarks(link.doc, 7, 'before'))).toEqual([]);
+    const hidden = docFromRuns([
+      { text: 'x', hidden: true },
+      { text: 'y', bold: true },
+    ]);
+    expect(names(inheritedFormattingMarks(hidden.doc, 2, 'before'))).toEqual(['bold']);
+    // Neither side usable: no formatting.
+    const both = docFromRuns([
+      { text: 'a', link: true },
+      { text: 'b', hidden: true },
+    ]);
+    expect(inheritedFormattingMarks(both.doc, 2, 'before')).toEqual([]);
   });
 
   it('falls back to the other side at a paragraph edge', () => {
