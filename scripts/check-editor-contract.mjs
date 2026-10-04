@@ -51,6 +51,10 @@ const REACT_PROPS_NOT_YET_IN_VUE = new Set([
   // does not flag them on every commit.
   'toolbarExtraStart',
   'toolbarExtraEnd',
+  // Pelnora fork 1.0.3-pelnora.9 — change cards switch and the host's zoom
+  // fit entry. React-only (no Vue host in Pelnora), same staging as above.
+  'showTrackedChangeCards',
+  'zoomFit',
 ]);
 
 function extractInterfaceBody(source, name) {

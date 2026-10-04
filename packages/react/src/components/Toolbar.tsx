@@ -33,7 +33,7 @@ import type { ListState } from './ui/ListButtons';
 import { LineSpacingPicker } from './ui/LineSpacingPicker';
 import { StylePicker } from './ui/StylePicker';
 import { MaterialSymbol } from './ui/MaterialSymbol';
-import { ZoomControl } from './ui/ZoomControl';
+import { ZoomControl, type ZoomFitOption } from './ui/ZoomControl';
 import { TableBorderPicker } from './ui/TableBorderPicker';
 import { TableBorderColorPicker } from './ui/TableBorderColorPicker';
 import { TableBorderWidthPicker } from './ui/TableBorderWidthPicker';
@@ -194,6 +194,8 @@ export interface ToolbarProps {
   zoom?: number;
   /** Callback when zoom changes */
   onZoomChange?: (zoom: number) => void;
+  /** Pelnora .9 — the host's "fit" entry in the zoom menu. */
+  zoomFit?: ZoomFitOption;
   /** Callback to refocus the editor after toolbar interactions */
   onRefocusEditor?: () => void;
   /** Callback when a table should be inserted */
@@ -429,6 +431,7 @@ export function Toolbar(explicitProps: ToolbarProps) {
     showZoomControl = true,
     zoom,
     onZoomChange,
+    zoomFit,
     onRefocusEditor,
     imageContext,
     onImageWrapType,
@@ -725,6 +728,7 @@ export function Toolbar(explicitProps: ToolbarProps) {
           <ZoomControl
             value={zoom}
             onChange={onZoomChange}
+            {...(zoomFit ? { fit: zoomFit } : {})}
             minZoom={0.5}
             maxZoom={2}
             disabled={disabled}

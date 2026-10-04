@@ -18,6 +18,9 @@ export function PageIndicator({
   const { t } = useTranslation();
   return (
     <div
+      // Pelnora .9 — a stable hook for the host's styling (the inline style
+      // below wins unless the host's rules are !important).
+      className="docx-page-indicator"
       style={{
         position: 'absolute',
         right: 24,

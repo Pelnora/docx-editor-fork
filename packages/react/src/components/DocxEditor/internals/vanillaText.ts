@@ -7,7 +7,7 @@
  * included — they're still in the doc until accepted.
  */
 
-import type { Node as PMNode } from 'prosemirror-model';
+import type { Mark, Node as PMNode } from 'prosemirror-model';
 
 /** Text of a single PM node (typically a paragraph), vanilla view. */
 export function getVanillaNodeText(node: PMNode): string {
@@ -94,6 +94,30 @@ function mapCharSpanToPm(
   return fromPos !== null && toPos !== null ? { from: fromPos, to: toPos } : null;
 }
 
+/**
+ * Map a POINT in a paragraph's vanilla text (0 … length) to a PM position, for
+ * a pure insertion at an offset (Pelnora .9). At a boundary between two runs
+ * the point belongs to the run BEFORE it, so inserted text continues that
+ * run, as typing does in Word; offset 0 is the start of the first run. Null
+ * when the offset is outside the vanilla text or the paragraph has none.
+ */
+export function mapVanillaOffsetToPmPoint(
+  doc: PMNode,
+  paragraphFrom: number,
+  paragraphTo: number,
+  offset: number
+): number | null {
+  const { fullText, textPositions } = vanillaTextAndPositions(doc, paragraphFrom, paragraphTo);
+  if (offset < 0 || offset > fullText.length || textPositions.length === 0) return null;
+  let charOffset = 0;
+  for (const tp of textPositions) {
+    const segEnd = charOffset + tp.len;
+    if (offset <= segEnd) return tp.pos + (offset - charOffset);
+    charOffset = segEnd;
+  }
+  return null;
+}
+
 export function findTextInPmParagraph(
   doc: PMNode,
   paragraphFrom: number,
@@ -130,4 +154,28 @@ export function mapVanillaOffsetToPm(
   const { fullText, textPositions } = vanillaTextAndPositions(doc, paragraphFrom, paragraphTo);
   if (offset + length > fullText.length) return null;
   return mapCharSpanToPm(textPositions, offset, length);
+}
+
+/** Marks inserted text never inherits: the change marks themselves, comment
+ *  ranges (the app repairs those on save), links and footnote references. */
+const NOT_INHERITED = new Set(['insertion', 'deletion', 'comment', 'hyperlink', 'footnoteRef']);
+
+/**
+ * The formatting marks (font, size, bold, colour …) inserted text takes from
+ * the text it lands in (Pelnora .9): without them a tracked insertion came out
+ * in the document default font, unlike the words around it. `prefer` picks the
+ * run after the position (a replacement: the first struck character) or before
+ * it (an insertion continues the run it follows); the other side is the
+ * fallback at a paragraph edge.
+ */
+export function inheritedFormattingMarks(
+  doc: PMNode,
+  pos: number,
+  prefer: 'after' | 'before'
+): readonly Mark[] {
+  const $pos = doc.resolve(pos);
+  const node =
+    prefer === 'after' ? ($pos.nodeAfter ?? $pos.nodeBefore) : ($pos.nodeBefore ?? $pos.nodeAfter);
+  if (!node || !node.isText) return [];
+  return node.marks.filter((m) => !NOT_INHERITED.has(m.type.name));
 }

@@ -12,6 +12,7 @@ import { EditingModeDropdown } from './EditingModeDropdown';
 import { AgentPanelToggle } from './AgentPanelToggle';
 import type { EditorMode } from './internals/editing-modes';
 import type { AgentPanelOptions } from './types';
+import type { ZoomFitOption } from '../ui/ZoomControl';
 
 interface ImageContext {
   pos: number;
@@ -72,6 +73,7 @@ export function DocxEditorToolbar({
   fontFamilies,
   zoom,
   showZoomControl,
+  zoomFit,
   // Handlers
   onFormat,
   onUndo,
@@ -120,6 +122,8 @@ export function DocxEditorToolbar({
   fontFamilies: ReadonlyArray<string | FontOption> | undefined;
   zoom: number;
   showZoomControl: boolean;
+  /** Pelnora .9 — the host's "fit" entry in the zoom menu. */
+  zoomFit?: ZoomFitOption | undefined;
   onFormat: (action: FormattingAction) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -165,6 +169,7 @@ export function DocxEditorToolbar({
         showZoomControl={showZoomControl}
         zoom={zoom}
         onZoomChange={onZoomChange}
+        {...(zoomFit ? { zoomFit } : {})}
         onRefocusEditor={onRefocusEditor}
         onInsertTable={onInsertTable}
         showTableInsert={true}

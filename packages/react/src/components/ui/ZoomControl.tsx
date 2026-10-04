@@ -18,9 +18,21 @@ export interface ZoomLevel {
   label: string;
 }
 
+/** Pelnora .9 — the host's "fit" entry at the top of the menu. */
+export interface ZoomFitOption {
+  /** Menu label, e.g. "Dopasuj". */
+  label: string;
+  /** Whether the host's fit is the current mode (the entry shows as chosen). */
+  active: boolean;
+  /** Choosing the entry: the host computes the zoom and sets it. */
+  onFit: () => void;
+}
+
 export interface ZoomControlProps {
   value?: number;
   onChange?: (zoom: number) => void;
+  /** Pelnora .9 — a "fit" entry above the levels. */
+  fit?: ZoomFitOption;
   levels?: ZoomLevel[];
   disabled?: boolean;
   className?: string;
@@ -49,9 +61,12 @@ const DEFAULT_ZOOM_LEVELS: ZoomLevel[] = [
 // COMPONENT
 // ============================================================================
 
+const FIT_VALUE = 'fit';
+
 export function ZoomControl({
   value = 1.0,
   onChange,
+  fit,
   levels = DEFAULT_ZOOM_LEVELS,
   disabled = false,
   className,
@@ -66,16 +81,24 @@ export function ZoomControl({
 
   const handleValueChange = React.useCallback(
     (newValue: string) => {
+      if (newValue === FIT_VALUE) {
+        fit?.onFit();
+        return;
+      }
       const zoom = parseFloat(newValue);
       if (!isNaN(zoom)) {
         onChange?.(zoom);
       }
     },
-    [onChange]
+    [onChange, fit]
   );
 
   return (
-    <Select value={value.toString()} onValueChange={handleValueChange} disabled={disabled}>
+    <Select
+      value={fit?.active ? FIT_VALUE : value.toString()}
+      onValueChange={handleValueChange}
+      disabled={disabled}
+    >
       <SelectTrigger
         className={cn(compact ? 'h-7 min-w-[55px] text-xs' : 'h-8 min-w-[70px] text-sm', className)}
         aria-label={t('zoom.ariaLabel', { label: displayLabel })}
@@ -83,6 +106,7 @@ export function ZoomControl({
         <SelectValue placeholder="100%">{displayLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
+        {fit && <SelectItem value={FIT_VALUE}>{fit.label}</SelectItem>}
         {levels.map((level) => (
           <SelectItem key={level.value} value={level.value.toString()}>
             {level.label}

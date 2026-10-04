@@ -132,6 +132,15 @@ export interface DocxEditorProps {
   showToolbar?: boolean;
   /** Whether to show zoom control (default: true) */
   showZoomControl?: boolean;
+  /** Pelnora .9 — a "fit" entry at the top of the zoom menu (label, whether
+   *  the host's fit is the current mode, what choosing it does). The editor
+   *  has no fit of its own; the host computes and sets the zoom. */
+  zoomFit?: ZoomFitOption;
+  /** Pelnora .9 — whether tracked changes get cards in the comments sidebar
+   *  (default: true). False: changes show only in the text, comments keep
+   *  their cards, and the sidebar opens only when there are comments; the
+   *  host provides accept / reject (the core's acceptChange etc.). */
+  showTrackedChangeCards?: boolean;
   /** Whether to show page margin guides/boundaries (default: false) */
   showMarginGuides?: boolean;
   /** Color for margin guides (default: '#c0c0c0') */
@@ -400,9 +409,12 @@ export interface DocxEditorRef {
   /** Suggest a tracked change at a KNOWN character span in a paragraph's vanilla
    * text, addressed by `offset` + `length` (not by search). Unlike proposeChange
    * this can target a specific occurrence when the same phrase repeats in one
-   * paragraph (search would be ambiguous). `replaceWith: ''` deletes the span.
-   * Returns false on missing paraId, an out-of-range span, or an attempt to
-   * layer on an existing tracked change. */
+   * paragraph (search would be ambiguous). `replaceWith: ''` deletes the span;
+   * `length: 0` with a non-empty `replaceWith` inserts at `offset` without
+   * striking anything (Pelnora .9). The inserted text keeps the formatting of
+   * the text it replaces or follows. Returns false on missing paraId, an
+   * out-of-range span, or an attempt to layer on (or land inside) an existing
+   * tracked change. */
   proposeChangeAt: (options: {
     paraId: string;
     offset: number;
@@ -534,6 +546,11 @@ import {
   EMPTY_ANCHOR_POSITIONS,
   createComment,
 } from './DocxEditor/commentFactories';
+import type { ZoomFitOption } from './ui/ZoomControl';
+import type { TrackedChangeEntry } from './sidebar/cardUtils';
+
+/** Stable empty list for `showTrackedChangeCards={false}` (Pelnora .9). */
+const NO_TRACKED_CHANGES: TrackedChangeEntry[] = [];
 
 /**
  * DocxEditor - Complete DOCX editor component
@@ -551,6 +568,8 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
     theme,
     showToolbar = true,
     showZoomControl = true,
+    zoomFit,
+    showTrackedChangeCards = true,
     showMarginGuides: _showMarginGuides = false,
     marginGuideColor: _marginGuideColor,
     showRuler = false,
@@ -1314,7 +1333,7 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
 
   const commentSidebarItems = useCommentSidebarItems({
     comments,
-    trackedChanges,
+    trackedChanges: showTrackedChangeCards ? trackedChanges : NO_TRACKED_CHANGES,
     callbacks: stableCallbacks,
     showResolved: showCommentsSidebar,
     isAddingComment: showCommentsSidebar ? isAddingComment : false,
@@ -1596,6 +1615,7 @@ export const DocxEditor = forwardRef<DocxEditorRef, DocxEditorProps>(function Do
             fontFamilies={fontFamilies}
             zoom={state.zoom}
             showZoomControl={showZoomControl}
+            zoomFit={zoomFit}
             onFormat={handleFormat}
             onUndo={undoActiveEditor}
             onRedo={redoActiveEditor}

@@ -32,7 +32,9 @@ import {
   getVanillaNodeText,
   getVanillaTextBetween,
   findTextInPmParagraph,
+  inheritedFormattingMarks,
   mapVanillaOffsetToPm,
+  mapVanillaOffsetToPmPoint,
 } from '../internals/vanillaText';
 import { mapHexToHighlightName } from '../../toolbarUtils';
 import { pointsToHalfPoints } from '../../ui/FontSizePicker';
@@ -396,7 +398,14 @@ export function useDocxEditorRefApi({
           tr = tr.addMark(textFrom, textTo, deletionMark);
         }
         if (!isDeletion) {
-          const insertedNode = schema.text(options.replaceWith, [insertionMark]);
+          // The inserted text keeps the formatting of the text it replaces
+          // (or, appended, of the run it follows) — Pelnora .9.
+          const base = inheritedFormattingMarks(
+            view.state.doc,
+            textFrom,
+            isInsertion ? 'before' : 'after'
+          );
+          const insertedNode = schema.text(options.replaceWith, [...base, insertionMark]);
           tr = tr.insert(textTo, insertedNode);
         }
 
@@ -411,7 +420,9 @@ export function useDocxEditorRefApi({
       // [offset, offset + length) span in the paragraph's vanilla text, so a
       // specific occurrence can be targeted even when the same phrase repeats in
       // one paragraph (search would be ambiguous → proposeChange refuses).
-      // Pelnora c11f. `replaceWith: ''` deletes the span.
+      // Pelnora c11f. `replaceWith: ''` deletes the span. Pelnora .9: `length:
+      // 0` with a non-empty `replaceWith` is a pure insertion at `offset`,
+      // nothing struck (Word's own redline for an added word).
       proposeChangeAt: (options) => {
         const view = pagedEditorRef.current?.getView();
         if (!view) return false;
@@ -420,6 +431,41 @@ export function useDocxEditorRefApi({
 
         const range = findParaIdRange(view.state.doc, options.paraId);
         if (!range) return false;
+
+        const date = new Date().toISOString();
+        const insertionMark = () =>
+          schema.marks.insertion.create({
+            revisionId: getNextCommentId(),
+            author: options.author,
+            date,
+          });
+        const isTracked = (node: { marks: readonly Mark[] } | null | undefined): boolean =>
+          !!node?.marks.some(
+            (m) => m.type === schema.marks.insertion || m.type === schema.marks.deletion
+          );
+
+        if (options.length === 0) {
+          if (options.replaceWith === '') return false; // nothing to do
+          const point = mapVanillaOffsetToPmPoint(
+            view.state.doc,
+            range.from,
+            range.to,
+            options.offset
+          );
+          if (point === null) return false;
+          // Refuse to land inside an existing tracked change.
+          const $point = view.state.doc.resolve(point);
+          if (isTracked($point.nodeBefore) && isTracked($point.nodeAfter)) return false;
+          const base = inheritedFormattingMarks(view.state.doc, point, 'before');
+          view.dispatch(
+            view.state.tr.insert(
+              point,
+              schema.text(options.replaceWith, [...base, insertionMark()])
+            )
+          );
+          setShowCommentsSidebar(true);
+          return true;
+        }
 
         const span = mapVanillaOffsetToPm(
           view.state.doc,
@@ -430,25 +476,22 @@ export function useDocxEditorRefApi({
         );
         if (!span) return false;
         const { from: textFrom, to: textTo } = span;
-        if (textFrom >= textTo) return false; // offset addressing always strikes a span
+        if (textFrom >= textTo) return false;
 
         // Refuse to layer onto an existing tracked change (same guard as
         // proposeChange). A redline from the SAME multi-occurrence apply lives at
         // a different span, so it never trips this — only a PRE-existing one does.
         let overlapsTrackedChange = false;
         view.state.doc.nodesBetween(textFrom, textTo, (node) => {
-          for (const m of node.marks) {
-            if (m.type === schema.marks.insertion || m.type === schema.marks.deletion) {
-              overlapsTrackedChange = true;
-              return false;
-            }
+          if (isTracked(node)) {
+            overlapsTrackedChange = true;
+            return false;
           }
           return true;
         });
         if (overlapsTrackedChange) return false;
 
         // Distinct ids for the deletion and the insertion (see proposeChange).
-        const date = new Date().toISOString();
         const deletionMark = schema.marks.deletion.create({
           revisionId: getNextCommentId(),
           author: options.author,
@@ -456,12 +499,9 @@ export function useDocxEditorRefApi({
         });
         let tr = view.state.tr.addMark(textFrom, textTo, deletionMark);
         if (options.replaceWith !== '') {
-          const insertionMark = schema.marks.insertion.create({
-            revisionId: getNextCommentId(),
-            author: options.author,
-            date,
-          });
-          tr = tr.insert(textTo, schema.text(options.replaceWith, [insertionMark]));
+          // The inserted text keeps the formatting of the text it replaces.
+          const base = inheritedFormattingMarks(view.state.doc, textFrom, 'after');
+          tr = tr.insert(textTo, schema.text(options.replaceWith, [...base, insertionMark()]));
         }
         view.dispatch(tr);
 
